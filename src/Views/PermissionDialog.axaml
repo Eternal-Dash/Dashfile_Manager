@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.PermissionDialog"
+        Title="权限" Width="430" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+
+  <StackPanel Margin="22" Spacing="18">
+
+    <TextBlock x:Name="PathText" Classes="sub" TextTrimming="CharacterEllipsis"/>
+
+    <TextBlock Text="权限" FontSize="18.5" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+
+    <Grid ColumnDefinitions="Auto,*,*,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="" Width="86"/>
+      <TextBlock Grid.Row="0" Grid.Column="1" Text="读" HorizontalAlignment="Center" Classes="sub"/>
+      <TextBlock Grid.Row="0" Grid.Column="2" Text="写" HorizontalAlignment="Center" Classes="sub"/>
+      <TextBlock Grid.Row="0" Grid.Column="3" Text="执行" HorizontalAlignment="Center" Classes="sub"/>
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="所有者" Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+      <CheckBox Grid.Row="1" Grid.Column="1" x:Name="U_R" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="1" Grid.Column="2" x:Name="U_W" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="1" Grid.Column="3" x:Name="U_X" HorizontalAlignment="Center" Click="OnAnyClick"/>
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="用户组" Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+      <CheckBox Grid.Row="2" Grid.Column="1" x:Name="G_R" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="2" Grid.Column="2" x:Name="G_W" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="2" Grid.Column="3" x:Name="G_X" HorizontalAlignment="Center" Click="OnAnyClick"/>
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Text="其它" Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+      <CheckBox Grid.Row="3" Grid.Column="1" x:Name="O_R" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="3" Grid.Column="2" x:Name="O_W" HorizontalAlignment="Center" Click="OnAnyClick"/>
+      <CheckBox Grid.Row="3" Grid.Column="3" x:Name="O_X" HorizontalAlignment="Center" Click="OnAnyClick"/>
+    </Grid>
+
+    <TextBlock Text="---- 特殊权限 ----" HorizontalAlignment="Center" Classes="sub"/>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="26">
+      <CheckBox x:Name="SetUid" Content="设置UID" Click="OnAnyClick"/>
+      <CheckBox x:Name="SetGid" Content="设置GID" Click="OnAnyClick"/>
+      <CheckBox x:Name="Sticky" Content="粘滞" Click="OnAnyClick"/>
+    </StackPanel>
+
+    <TextBlock x:Name="OctalText" Text="--------- (000)" HorizontalAlignment="Center"
+               FontFamily="Consolas, Cascadia Mono, monospace" FontSize="16.5"
+               Foreground="{DynamicResource TextMain}"/>
+
+    <TextBlock x:Name="QuickRowLabel" Text="快速" Classes="sub" HorizontalAlignment="Center"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+      <Button Classes="tool" Content="644" Tag="644" Click="OnQuick"/>
+      <Button Classes="tool" Content="755" Tag="755" Click="OnQuick"/>
+      <Button Classes="tool" Content="777" Tag="777" Click="OnQuick"/>
+      <Button Classes="tool" Content="700" Tag="700" Click="OnQuick"/>
+      <Button Classes="tool" Content="600" Tag="600" Click="OnQuick"/>
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Classes="tool" Content="取消" Click="OnCancel"/>
+      <Button Classes="tool" Content="确定" Click="OnOk"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

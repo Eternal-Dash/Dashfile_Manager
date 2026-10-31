@@ -1,0 +1,35 @@
+DashFile 插件目录
+=================
+
+安装插件（推荐）：
+  打开 DashFile →「插件」页 →「安装 .dfp」；或把 .dfp 直接拖进插件页。
+  .dfp 是 DashFile 统一插件包后缀（zip 格式，根目录含 plugin.json + 入口 DLL）。
+
+已安装后的目录结构：
+
+  plugins\<插件id>\plugin.json
+  plugins\<插件id>\<入口程序集>.dll
+
+plugin.json 示例：
+
+{
+  "id": "com.example.hello",
+  "name": "Hello Plugin",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "示例插件",
+  "assembly": "HelloPlugin.dll",
+  "entryType": "HelloPlugin.HelloPlugin",
+  "apiVersion": 1
+}
+
+发布包默认不带插件（plugins 里只有 README）—— 下载到的工具是纯净的，插件按需自取。
+插件包下载位置：仓库的 plugins\ 目录（.dfp 文件，下载后安装并点「重新加载」）。
+当前官方插件：
+  · AVB 工作台（com.dashfile.avbstudio）：AVB 解析、重签、VBMeta 构建、整树链式/非链式重建、A/B 批处理、扫描
+
+插件启用状态保存在 %LOCALAPPDATA%\DashFile\plugins\plugin-state.json。
+插件卸载：插件页选中插件 →「卸载」，可选择是否同时删除插件数据。
+
+插件开发说明见程序目录 docs\插件开发指南.md。
+示例源码见仓库 samples\。

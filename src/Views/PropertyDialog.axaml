@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.PropertyDialog"
+        Title="属性" Width="560" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+  <StackPanel Margin="22" Spacing="16">
+
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <Border Width="34" Height="34" CornerRadius="8" Background="{DynamicResource PanelAlt}"
+              BorderBrush="{DynamicResource Stroke}" BorderThickness="1">
+        <TextBlock x:Name="IconGlyph" Text="📄" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      </Border>
+      <StackPanel VerticalAlignment="Center">
+        <TextBlock x:Name="NameText" Text="" FontSize="16" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextMain}"/>
+        <TextBlock x:Name="PathText" Text="" Classes="sub" TextTrimming="CharacterEllipsis" MaxWidth="440"/>
+      </StackPanel>
+    </StackPanel>
+
+    <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Stroke}"
+            BorderThickness="1" CornerRadius="8" Padding="14,10">
+      <Grid x:Name="InfoGrid" ColumnDefinitions="118,*" RowDefinitions="Auto" RowSpacing="9"/>
+    </Border>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Classes="tool" Content="关闭" Click="OnClose"/>
+    </StackPanel>
+  </StackPanel>
+</Window>

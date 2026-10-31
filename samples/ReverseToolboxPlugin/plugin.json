@@ -1,0 +1,11 @@
+{
+  "id": "com.dashfile.reversetool",
+  "name": "逆向工具箱",
+  "version": "1.0.0",
+  "author": "EternalDash",
+  "description": "APK 逆向分析：Manifest 解码、签名证书、DEX 结构/字符串、资源字符串、哈希、组件与权限（只读，不执行 APK）。",
+  "assembly": "ReverseToolboxPlugin.dll",
+  "entryType": "ReverseToolboxPlugin.ReverseToolboxPlugin",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.0"
+}

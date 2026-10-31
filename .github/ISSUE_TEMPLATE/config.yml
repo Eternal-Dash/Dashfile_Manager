@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题 / 装插件 / 闲聊
+    url: https://github.com/Eternal-Dash/Dashfile_Manager/discussions
+    about: 这类问题请发到 Discussions，Issue 留给能复现的 bug 和明确的功能建议

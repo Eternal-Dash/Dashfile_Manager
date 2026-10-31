@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>DashFile</AssemblyName>
+    <RootNamespace>DashFile</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- 发布时开裁剪（TrimMode=partial）：裁剪会默认关掉反射版 JSON，
+         而 plugin.json / 设置 / 标签缓存都走 JsonSerializer，这里显式打开。 -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- 全量分析器（CAxxxx）。默认的 Recommended 只覆盖很少一类问题，
+         这里打开 All 后由 .editorconfig 按规则逐条定级：真正的坑保持 warning，
+         噪声规则降到 suggestion，构建输出才不会淹掉真问题。 -->
+    <AnalysisMode>All</AnalysisMode>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 子项目在 src 下，必须排除，否则默认 **/*.cs 会把 API 工程和它的 obj 生成文件也编译进来 -->
+    <Compile Remove="DashFile.PluginApi\**\*.cs" />
+    <EmbeddedResource Remove="DashFile.PluginApi\**" />
+    <None Remove="DashFile.PluginApi\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 插件契约程序集：宿主与外部插件共用同一份类型 -->
+    <ProjectReference Include="DashFile.PluginApi\DashFile.PluginApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 裁剪时保住自己的程序集：编译出来的 XAML（!XamlIlPopulate）和反射绑定目标
+         都只被反射引用，被裁掉会启动即报 "No precompiled XAML found"；
+         PluginApi 也要整份保留，否则外部插件运行时缺类型。 -->
+    <TrimmerRootAssembly Include="DashFile" />
+    <TrimmerRootAssembly Include="DashFile.PluginApi" />
+    <!-- 插件运行在宿主里，会直接调 Avalonia/SkiaSharp 的 API：这两个不能裁，
+         否则插件页面会报 "Attempted to access a missing method"（宿主没用到的方法被裁掉）。 -->
+    <TrimmerRootAssembly Include="Avalonia" />
+    <TrimmerRootAssembly Include="Avalonia.Base" />
+    <TrimmerRootAssembly Include="Avalonia.Controls" />
+    <TrimmerRootAssembly Include="Avalonia.Desktop" />
+    <TrimmerRootAssembly Include="Avalonia.Markup.Xaml" />
+    <TrimmerRootAssembly Include="Avalonia.Skia" />
+    <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
+    <TrimmerRootAssembly Include="Avalonia.Win32" />
+    <TrimmerRootAssembly Include="SkiaSharp" />
+    <TrimmerRootAssembly Include="HarfBuzzSharp" />
+    <TrimmerRootAssembly Include="CommunityToolkit.Mvvm" />
+    <!-- 随包插件（逆向工具箱）用到压缩包/证书解析，这两块宿主本身不用，必须保下来 -->
+    <TrimmerRootAssembly Include="System.IO.Compression" />
+    <TrimmerRootAssembly Include="System.Security.Cryptography" />
+    <!-- 插件是运行时加载的外部程序集，裁剪器看不到它调用哪些框架方法；
+         保住 CoreLib 这套基础 API，插件才不会被裁出 MissingMethod。 -->
+    <TrimmerRootAssembly Include="System.Private.CoreLib" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 行为测试工程（tests/DashFileTests）要直接测内部的 AXML 阅读器 / 授权表布局，不额外开 public 面 -->
+    <InternalsVisibleTo Include="DashFileTests" />
+  </ItemGroup>
+
+</Project>

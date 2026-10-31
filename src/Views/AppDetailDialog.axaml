@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.AppDetailDialog"
+        Width="620" Height="640"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+
+  <Grid Margin="20,16" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+    <StackPanel Grid.Row="0" Spacing="4">
+      <TextBlock x:Name="TitleText" Text="应用详情" FontSize="18" FontWeight="SemiBold"
+                 Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"/>
+      <TextBlock x:Name="SubText" Text="" FontSize="12.5" Foreground="{DynamicResource TextMuted}"
+                 TextTrimming="CharacterEllipsis"/>
+    </StackPanel>
+
+    <Border Grid.Row="1" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Stroke}"
+            BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="16,10">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="RowsHost">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="130,*" Margin="0,6">
+                <TextBlock Text="{Binding Key}" FontSize="13" Foreground="{DynamicResource TextMuted}"
+                           VerticalAlignment="Top"/>
+                <SelectableTextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13"
+                                     Foreground="{DynamicResource TextMain}"
+                                     TextWrapping="Wrap" VerticalAlignment="Top"/>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <Button Grid.Row="2" Content="关闭" Classes="tool pri" HorizontalAlignment="Right"
+            Padding="22,7" Click="OnClose"/>
+  </Grid>
+</Window>

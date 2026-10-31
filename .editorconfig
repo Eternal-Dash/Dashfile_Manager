@@ -1,0 +1,75 @@
+root = true
+
+[*.cs]
+# 缩进/换行与现有源码保持一致（项目全部是 LF + 4 空格）
+indent_style = space
+indent_size = 4
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+
+# ============================================================================
+# 分析器分级（AnalysisMode=All 已打开；这里只做"逐条定级"，不改规则含义）
+#
+# 原则：
+#   warning  = 真会出问题（句柄泄漏、平台 API、文化敏感解析、弱加密）
+#   suggestion = 值得改但会大面积 churn，排队处理（见每条后面的说明）
+#   none     = 对本项目是纯噪声
+# ============================================================================
+
+# ---- 保持 warning：真问题 ----
+# SkiaSharp 的 SKPath/SKPaint/SKBitmap/SKData 泄漏
+dotnet_diagnostic.CA2000.severity = warning
+# 只在 Windows 上可用的 API 被无守卫调用（We already guard with OperatingSystem.IsWindows）
+dotnet_diagnostic.CA1416.severity = warning
+# 弱加密算法（MD5/SHA1 用于"签名方案识别"是必须读的，但不能用于校验信任）
+dotnet_diagnostic.CA5350.severity = suggestion
+dotnet_diagnostic.CA5351.severity = suggestion
+
+# ---- suggestion：值得改，但这轮不改 ----
+# 数字解析的文化无关性：9 处已改完，留 suggestion 防止新代码再加
+dotnet_diagnostic.CA1305.severity = suggestion
+# 字符串比较的文化敏感性（StartsWith/IndexOf 未传 StringComparison）。路径比较在土耳其语区
+# 会出问题，属于"下一批要清"的真实项，共 130+ 处，不适合和本轮的稳定性修复混在一起。
+dotnet_diagnostic.CA1307.severity = suggestion
+dotnet_diagnostic.CA1310.severity = suggestion
+dotnet_diagnostic.CA1308.severity = suggestion
+# ConfigureAwait：这是 UI 程序，绝大多数 await 后面就要碰 UI 状态，全量加 ConfigureAwait 是无收益改动
+dotnet_diagnostic.CA2007.severity = suggestion
+# catch (Exception)：本项目刻意这么做（每次都有日志/状态栏提示），规则想要的是库式精确捕获
+dotnet_diagnostic.CA1031.severity = suggestion
+# 公开 API 参数校验：这是应用不是类库，调用点全是自己人
+dotnet_diagnostic.CA1062.severity = suggestion
+# CancellationToken 必须是最后一个参数：改了要动几十个调用点，收益为零
+dotnet_diagnostic.CA1068.severity = suggestion
+# 持有 IDisposable 字段的类应实现 IDisposable：这里的 CTS/SemaphoreSlim 都是单例长生命周期、
+# 且不带 WaitHandle，不 Dispose 不会泄漏非托管资源（真有句柄的 CA2000 仍然保持 warning）
+dotnet_diagnostic.CA1001.severity = suggestion
+# P/Invoke 的 DefaultDllImportSearchPaths：只调 user32/kernel32，默认搜索顺序可接受
+dotnet_diagnostic.CA5392.severity = suggestion
+# 性能微优化类：数组字面量复用、StringBuilder 追加 char、Count() 代替 Any() 等
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1865.severity = none
+dotnet_diagnostic.CA1866.severity = none
+dotnet_diagnostic.CA1869.severity = none
+dotnet_diagnostic.CA1834.severity = none
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1826.severity = none
+dotnet_diagnostic.CA1806.severity = none
+dotnet_diagnostic.CA1849.severity = suggestion
+dotnet_diagnostic.CA1002.severity = none
+# ---- 设计/API 形状类：应用无需遵守 ----
+dotnet_diagnostic.CA1030.severity = suggestion   # 用事件代替 OnXxx 方法：这里就是普通方法
+dotnet_diagnostic.CA1034.severity = suggestion   # 嵌套类型公开：DAX 里嵌套的是渲染模型
+dotnet_diagnostic.CA1003.severity = suggestion   # 事件用 EventHandler<T>：有自定义 delegate 是历史接口
+dotnet_diagnostic.CA1721.severity = suggestion   # 成员名与类型名相同
+dotnet_diagnostic.CA1724.severity = suggestion   # 类型名与命名空间冲突
+dotnet_diagnostic.CA1819.severity = suggestion   # 属性返回数组：给绑定用的只读快照，改了反而更糟
+dotnet_diagnostic.CA1805.severity = none         # 显式默认值初始化：项目风格明确写出来
+dotnet_diagnostic.CA1820.severity = none         # 用 string.Length == 0 而不是 == ""
+dotnet_diagnostic.CA1847.severity = none         # 单字符字符串 → char
+dotnet_diagnostic.CA1859.severity = none         # 用具体类型代替接口
+dotnet_diagnostic.CA1867.severity = none         # 用 char 重载
+dotnet_diagnostic.CA1870.severity = none         # 缓存 StringBuilder 结果
+dotnet_diagnostic.CA2016.severity = warning      # 取消令牌必须转发（真会漏取消）
+dotnet_diagnostic.CA1508.severity = suggestion   # 死条件：仅剩已知误报

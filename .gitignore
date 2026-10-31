@@ -1,0 +1,32 @@
+# ---- build outputs ----
+bin/
+obj/
+/DashFile/
+/build/plugin-dist/
+
+# ---- logs / caches ----
+Log/
+*.log
+*.user
+.vs/
+
+# ---- temp ----
+*.tmp
+*.bak
+
+# ---- 发版 / 本地归档（不进版本库）----
+/build/_archive/
+/build/ui-shot/
+/artifacts/
+*.dfp
+# 例外：仓库里的 plugins/ 是官方插件下载区，要能提交
+!plugins/*.dfp
+
+# ---- 第三方二进制：adb / fastboot 不入库 ----
+# 见 tools/adb/README.md；发布包由 build\publish.ps1 从本机 tools\adb 复制
+/tools/adb/*.exe
+/tools/adb/*.dll
+
+# ---- 本机凭据，绝不提交 ----
+.gh-token
+*.token

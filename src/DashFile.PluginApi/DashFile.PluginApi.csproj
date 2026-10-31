@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>DashFile.PluginApi</AssemblyName>
+    <RootNamespace>DashFile.PluginApi</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- 插件 API 必须保持稳定：这里的版本号和 PluginApiInfo.Version 一起递增 -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件页面直接返回 Avalonia Control；宿主会保证使用同一份 Avalonia 程序集 -->
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+  </ItemGroup>
+
+</Project>

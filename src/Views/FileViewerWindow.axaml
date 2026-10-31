@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.FileViewerWindow"
+        Title="查看" Width="980" Height="720"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+  <DockPanel LastChildFill="True">
+    <Border Classes="bar" DockPanel.Dock="Top">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="PathText" Classes="sub" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+        <Button Grid.Column="1" Classes="tool" Content="关闭" Click="OnClose"/>
+      </Grid>
+    </Border>
+    <Grid>
+      <TextBox x:Name="Output" IsReadOnly="True"
+               AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+               FontFamily="Consolas, Cascadia Mono, monospace" FontSize="13.5"
+               Background="{DynamicResource PanelAlt}" Foreground="{DynamicResource TextMain}"
+               BorderThickness="0" Padding="12,10"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+      <ScrollViewer x:Name="ImageScroll" IsVisible="False"
+                    HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                    Background="{DynamicResource PanelAlt}">
+        <Canvas x:Name="ImageCanvas" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"/>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</Window>

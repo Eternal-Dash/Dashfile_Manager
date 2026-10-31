@@ -1,0 +1,38 @@
+name: 功能建议
+description: 想要的能力、觉得别扭的交互
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你在解决什么问题
+      description: 描述场景，比直接说"加个按钮"更有用
+      placeholder: 例如：刷完模块想立刻看模块是否生效，现在得手动去 /data/adb/modules 翻
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎么做
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternative
+    attributes:
+      label: 有别的替代方案吗
+    validations:
+      required: false
+
+  - type: dropdown
+    id: pr
+    attributes:
+      label: 愿意自己提 PR 吗
+      options:
+        - 可以，我来写
+        - 需要指导
+        - 只提建议
+    validations:
+      required: true

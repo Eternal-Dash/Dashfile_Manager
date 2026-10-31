@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>HelloPlugin</AssemblyName>
+    <RootNamespace>HelloPlugin</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- API 由宿主提供，不要把 DashFile.PluginApi.dll 复制进插件目录 -->
+    <ProjectReference Include="..\..\src\DashFile.PluginApi\DashFile.PluginApi.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

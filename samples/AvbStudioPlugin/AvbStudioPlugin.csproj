@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>AvbStudioPlugin</AssemblyName>
+    <RootNamespace>AvbStudioPlugin</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只编译 UI；Avalonia 运行时由宿主提供，绝不复制进插件目录 -->
+    <PackageReference Include="Avalonia" Version="11.3.22">
+      <PrivateAssets>all</PrivateAssets>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <ProjectReference Include="..\..\src\DashFile.PluginApi\DashFile.PluginApi.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

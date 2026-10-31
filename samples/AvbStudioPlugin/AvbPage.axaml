@@ -1,0 +1,556 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:papi="using:DashFile.PluginApi.Controls"
+             x:Class="AvbStudioPlugin.AvbPage"
+             Background="Transparent">
+  <UserControl.Styles>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="16"/>
+    </Style>
+    <Style Selector="Border.soft">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="12"/>
+    </Style>
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+          <GradientStop Color="#FFFFFFFF" Offset="0"/>
+          <GradientStop Color="#FFD7CCFE" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="14.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="TextBlock.sub">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, monospace"/>
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+    </Style>
+    <!-- 页内导航改用宿主的 SegmentedTabs（滑动指示器），按钮只负责文字 -->
+    <Style Selector="Button.seg.tabbtn">
+      <Setter Property="Padding" Value="12,7"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.tool">
+      <Setter Property="Transitions" Value="{x:Null}"/>
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="11,6"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="FontSize" Value="12.5"/>
+    </Style>
+    <Style Selector="Button.tool:pointerover">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#1AA78BFA" Offset="0"/>
+          <GradientStop Color="#3AA78BFA" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#3A2E2646" Offset="0"/>
+          <GradientStop Color="#4A4A3E6E" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="14,7"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#4A3A3058" Offset="0"/>
+          <GradientStop Color="#5A5A4A7E" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="9,6"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="MinHeight" Value="32"/>
+    </Style>
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="4"/>
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <!-- 标题 / 徽标 / 引擎状态已交给宿主的插件页顶部（IPluginHost.SetHeader），
+       页面本身直接从导航条开始，内容整体上移一整块 -->
+  <Grid RowDefinitions="Auto,*" RowSpacing="10">
+      <!-- 页内导航：常驻滑动标签条（和主窗口顶部同一套实现，切换时滑块滑过去并自适应宽度） -->
+      <Border Classes="card" Padding="6,4" HorizontalAlignment="Left">
+        <papi:SegmentedTabs x:Name="Nav" SelectedIndex="0" SelectionChanged="OnNavSelectionChanged"
+                            AnimationMs="240">
+          <Button Classes="seg tabbtn" Content="概览"/>
+          <Button Classes="seg tabbtn" Content="分区签名"/>
+          <Button Classes="seg tabbtn" Content="构建 VBMeta"/>
+          <Button Classes="seg tabbtn" Content="AVB 重建"/>
+          <Button Classes="seg tabbtn" Content="A/B 批处理"/>
+          <Button Classes="seg tabbtn" Content="镜像扫描"/>
+        </papi:SegmentedTabs>
+      </Border>
+
+      <ScrollViewer Grid.Row="1" x:Name="PageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid>
+          <!-- 概览 -->
+          <StackPanel x:Name="OverviewPage" Spacing="12">
+            <Border Classes="card">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="把 AVB 操作收进一个干净的工作台" Classes="h2"/>
+                  <TextBlock Classes="sub" MaxWidth="680"
+                             Text="解析已有镜像的 AVB 头与描述符，用内置 AOSP 密钥或自定义私钥重签分区；也可以汇总子分区描述符构建 vbmeta。所有操作只写目标副本，源镜像不改动。"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                    <Button Classes="primary" Content="开始签名" Click="OnQuickSign"/>
+                    <Button Classes="tool" Content="构建 VBMeta" Click="OnQuickVbmeta"/>
+                    <Button Classes="tool" Content="扫描目录" Click="OnQuickScan"/>
+                  </StackPanel>
+                </StackPanel>
+                <Border Grid.Column="1" Width="138" Height="138" CornerRadius="26"
+                        Background="{DynamicResource AccentBg}" BorderBrush="{DynamicResource AccentDeep}"
+                        BorderThickness="1" Margin="18,0,0,0">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="7">
+                    <Path Data="M4,3 L16,3 L20,7 L20,17 L4,17 Z M4,7 L16,7 M8,11 L16,11 M8,14 L14,14"
+                          Stroke="{DynamicResource Accent}" StrokeThickness="1.3" Stretch="Uniform"
+                          Width="42" Height="42" HorizontalAlignment="Center"/>
+                    <TextBlock Text="AVB" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentText}"
+                               HorizontalAlignment="Center"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+              <Border Grid.Column="0" Classes="soft">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="签名算法" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/>
+                  <TextBlock Text="RSA-2048 / 4096 / 8192" FontSize="13.5" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextMain}"/>
+                  <TextBlock Text="SHA-256 / SHA-512" Classes="sub"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Classes="soft">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="内置密钥" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/>
+                  <TextBlock Text="AOSP testkey" FontSize="13.5" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextMain}"/>
+                  <TextBlock Text="解锁 / 关闭校验的设备" Classes="sub"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" Classes="soft">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="输入输出" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/>
+                  <TextBlock Text="任意本地路径" FontSize="13.5" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextMain}"/>
+                  <TextBlock Text="不覆盖源镜像" Classes="sub"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Border Classes="card">
+              <StackPanel Spacing="9">
+                <TextBlock Text="工作流" Classes="h2"/>
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+                  <Button Grid.Row="0" Grid.Column="0" Classes="tool" HorizontalContentAlignment="Left"
+                          Click="OnQuickSign">
+                    <StackPanel Spacing="2"><TextBlock Text="① 分区签名" FontWeight="SemiBold"/>
+                      <TextBlock Text="选择 boot / init_boot，解析后一键重签" Classes="sub"/></StackPanel>
+                  </Button>
+                  <Button Grid.Row="0" Grid.Column="1" Classes="tool" HorizontalContentAlignment="Left"
+                          Click="OnQuickVbmeta">
+                    <StackPanel Spacing="2"><TextBlock Text="② 构建 VBMeta" FontWeight="SemiBold"/>
+                      <TextBlock Text="汇总已签名子分区，生成 vbmeta" Classes="sub"/></StackPanel>
+                  </Button>
+                  <Button Grid.Row="1" Grid.Column="0" Classes="tool" HorizontalContentAlignment="Left"
+                          Click="OnQuickBatch">
+                    <StackPanel Spacing="2"><TextBlock Text="③ A/B 批处理" FontWeight="SemiBold"/>
+                      <TextBlock Text="扫描目录，统一回滚值后批量重签" Classes="sub"/></StackPanel>
+                  </Button>
+                  <Button Grid.Row="1" Grid.Column="1" Classes="tool" HorizontalContentAlignment="Left"
+                          Click="OnQuickScan">
+                    <StackPanel Spacing="2"><TextBlock Text="④ 镜像扫描" FontWeight="SemiBold"/>
+                      <TextBlock Text="递归提取 AVB 信息并导出报告" Classes="sub"/></StackPanel>
+                  </Button>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <TextBlock Text="约定" Classes="h2"/>
+                <TextBlock Classes="sub" Text="· 签名只在目标副本上执行，源镜像始终不被改写。"/>
+                <TextBlock Classes="sub" Text="· 回滚值默认沿用原镜像；显式填写覆盖值才会改动。"/>
+                <TextBlock Classes="sub" Text="· 内置 AOSP testkey 只适用于已解锁或关闭 dm-verity 的设备。"/>
+                <TextBlock Classes="sub" Text="· 哈希树镜像会保留原有树数据，仅更新 vbmeta 签名；新建哈希树请在原厂镜像上操作。"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- 分区签名 -->
+          <StackPanel x:Name="SignPage" Spacing="12" IsVisible="False">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="源镜像" Classes="h2"/>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="SrcBox" Watermark="选择或粘贴 .img 路径"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseSource"/>
+                  <Button Grid.Column="2" Classes="primary" Content="解析" Click="OnParseSource"/>
+                </Grid>
+                <TextBlock x:Name="SignStatus" Classes="sub" Text="尚未选择镜像"/>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="解析结果" Classes="h2"/>
+                <TextBlock x:Name="InfoTitle" Text="—" FontSize="13.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}"/>
+                <TextBlock x:Name="InfoDetails" Classes="mono" TextWrapping="Wrap" Text="等待解析…"/>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="签名设置" Classes="h2"/>
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="签名密钥" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <ComboBox x:Name="KeyMode" SelectedIndex="0" SelectionChanged="OnKeyModeChanged">
+                      <ComboBoxItem Content="内置 AOSP testkey"/>
+                      <ComboBoxItem Content="自定义私钥 (.pem)"/>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="算法" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <ComboBox x:Name="AlgoBox" SelectedIndex="1">
+                      <ComboBoxItem Content="SHA256_RSA2048"/>
+                      <ComboBoxItem Content="SHA256_RSA4096"/>
+                      <ComboBoxItem Content="SHA256_RSA8192"/>
+                      <ComboBoxItem Content="SHA512_RSA2048"/>
+                      <ComboBoxItem Content="SHA512_RSA4096"/>
+                      <ComboBoxItem Content="SHA512_RSA8192"/>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="回滚值（留空沿用）" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="RollbackBox" Watermark="例如 0"/>
+                  </StackPanel>
+                </Grid>
+                <CheckBox x:Name="HashtreeBox" IsVisible="False"
+                          Content="未签名镜像使用 hashtree footer（system / vendor 等 dm-verity 分区）"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" x:Name="CustomKeyRow" IsVisible="False">
+                  <TextBox x:Name="CustomKeyBox" Watermark="选择 RSA 私钥 .pem"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseKey"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="10">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="分区名（留空沿用）" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="PartitionBox" Watermark="例如 boot"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="输出路径" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="OutBox" Watermark="默认：源文件名_signed.img"/>
+                  </StackPanel>
+                  <Button Grid.Column="2" Classes="tool" Content="另存…" VerticalAlignment="Bottom"
+                          Click="OnBrowseOutput"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="SignBtn" Classes="primary" Content="开始签名" Click="OnSign"/>
+                  <Button Classes="tool" Content="清空日志" Click="OnClearSignLog"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <TextBlock Text="执行日志" Classes="h2"/>
+                <TextBox x:Name="SignLog" Classes="mono" IsReadOnly="True" Height="120"
+                         AcceptsReturn="True" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- VBMeta -->
+          <StackPanel x:Name="VbmetaPage" Spacing="12" IsVisible="False">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="参考镜像（可选）" Classes="h2"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="RefBox" Watermark="原厂 vbmeta.img，可继承算法/回滚值/链式分区"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRef"/>
+                </Grid>
+                <TextBlock x:Name="RefInfo" Classes="sub" Text="尚未选择参考镜像"/>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                  <TextBlock Text="子分区镜像" Classes="h2"/>
+                  <Button Grid.Column="1" Classes="tool" Content="清空" Click="OnClearChildren"/>
+                  <Button Grid.Column="2" Classes="primary" Content="添加镜像" Click="OnAddChildren"/>
+                </Grid>
+                <TextBlock Classes="sub" Text="添加已经带 AVB 签名的 boot / system / vendor 等镜像；只复制其 Hash / Hashtree 描述符。"/>
+                <ListBox x:Name="ChildrenList" Height="150">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="*,120,100,90">
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontSize="12"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Partition}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="3" Text="{Binding SizeText}" FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="输出设置" Classes="h2"/>
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="算法" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <ComboBox x:Name="VbAlgo" SelectedIndex="1">
+                      <ComboBoxItem Content="SHA256_RSA2048"/>
+                      <ComboBoxItem Content="SHA256_RSA4096"/>
+                      <ComboBoxItem Content="SHA256_RSA8192"/>
+                      <ComboBoxItem Content="SHA512_RSA2048"/>
+                      <ComboBoxItem Content="SHA512_RSA4096"/>
+                      <ComboBoxItem Content="SHA512_RSA8192"/>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="回滚值" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="VbRollback" Text="0"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="链式公钥 .bin（可选）" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="ChainKeyBox" Watermark="用于参考镜像里的 Chain Partition"/>
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="VbOut" Watermark="输出 vbmeta.img 路径"/>
+                  <Button Grid.Column="1" Classes="tool" Content="另存…" Click="OnBrowseVbOut"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="VbBtn" Classes="primary" Content="生成 VBMeta" Click="OnBuildVbmeta"/>
+                  <Button Classes="tool" Content="清空日志" Click="OnClearVbLog"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="6">
+                <TextBlock Text="执行日志" Classes="h2"/>
+                <TextBox x:Name="VbLog" Classes="mono" IsReadOnly="True" Height="110"
+                         AcceptsReturn="True" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+
+          <!-- 整树重建 -->
+          <StackPanel x:Name="RebuildPage" Spacing="12" IsVisible="False">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="整树重建" Classes="h2"/>
+                <TextBlock Classes="sub"
+                           Text="默认处理 boot / init_boot / vendor_boot（其它分区在下方填列表）。链式模式只重签各分区 footer，保留原 vbmeta；非链式模式普通分区写无签名 footer，由 vbmeta 统一签名。原文件先整体备份。" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="RbInBox" Watermark="输入目录（原厂镜像）"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRbIn"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="RbOutBox" Watermark="输出目录"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRbOut"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="RbBackupBox" Watermark="备份目录（留空 = 输入目录\backup）"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRbBackup"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="重建模式" Classes="h2"/>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="模式" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <ComboBox x:Name="RbMode" SelectedIndex="0" SelectionChanged="OnRbModeChanged">
+                      <ComboBoxItem Content="非链式模式"/>
+                      <ComboBoxItem Content="链式模式"/>
+                    </ComboBox>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="分区列表（可选）" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBox x:Name="RbPartitions" Watermark="留空 = boot/init_boot/vendor_boot；其它分区请填名称"/>
+                  </StackPanel>
+                </Grid>
+                <TextBlock x:Name="RbModeHint" Classes="sub" Text=""/>
+                <StackPanel Orientation="Horizontal" Spacing="18">
+                  <CheckBox x:Name="RbRegenSalt" Content="重新生成 Salt"/>
+                  <CheckBox x:Name="RbVerifyOnly" Content="仅校验，不写入"/>
+                </StackPanel>
+                <ComboBox x:Name="RbKeyMode" SelectedIndex="0" SelectionChanged="OnRbKeyModeChanged">
+                  <ComboBoxItem Content="内置 AOSP testkey"/>
+                  <ComboBoxItem Content="自定义私钥 (.pem)"/>
+                </ComboBox>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" x:Name="RbCustomKeyRow" IsVisible="False">
+                  <TextBox x:Name="RbKeyBox" Watermark="自定义 .pem"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRbKey"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="RbBtn" Classes="primary" Content="开始重建" Click="OnRunRebuild"/>
+                  <TextBlock x:Name="RbStatus" Classes="sub" VerticalAlignment="Center" Text=""/>
+                </StackPanel>
+                <TextBox x:Name="RbLog" Classes="mono" IsReadOnly="True" Height="140"
+                         AcceptsReturn="True" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+          <!-- 批处理 -->
+          <StackPanel x:Name="BatchPage" Spacing="12" IsVisible="False">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="扫描 A/B 分区目录" Classes="h2"/>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="BatchDirBox" Watermark="选择包含 boot_a.img / boot_b.img 的目录"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择目录" Click="OnBrowseBatchDir"/>
+                  <Button Grid.Column="2" Classes="primary" Content="扫描" Click="OnScanBatch"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="BatchOutDir" Watermark="输出目录"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseBatchOut"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="18">
+                  <CheckBox x:Name="UnifyRollback" Content="统一回滚值到最高值" IsChecked="True"/>
+                  <CheckBox x:Name="StripAb" Content="输出名去掉 _a/_b"/>
+                  <CheckBox x:Name="BatchUseAosp" Content="使用内置 AOSP 密钥" IsChecked="True"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" x:Name="BatchCustomKeyRow" IsVisible="False">
+                  <TextBox x:Name="BatchKeyBox" Watermark="自定义 .pem"/>
+                  <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseBatchKey"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="扫描结果" Classes="h2"/>
+                  <TextBlock x:Name="BatchSummary" Grid.Column="1" Classes="sub" Text="尚未扫描"/>
+                </Grid>
+                <ListBox x:Name="BatchList" Height="180">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="*,130,70,80">
+                        <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Partition}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Side}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Rollback}" FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button x:Name="BatchBtn" Classes="primary" Content="批量重签" Click="OnRunBatch"/>
+                  <TextBlock x:Name="BatchStatus" Classes="sub" VerticalAlignment="Center" Text=""/>
+                </StackPanel>
+                <TextBox x:Name="BatchLog" Classes="mono" IsReadOnly="True" Height="110"
+                         AcceptsReturn="True" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- 扫描 -->
+          <StackPanel x:Name="ScanPage" Spacing="12" IsVisible="False">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="递归扫描目录" Classes="h2"/>
+                <Grid ColumnDefinitions="*,160,Auto,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="ScanDirBox" Watermark="选择目录"/>
+                  <TextBox Grid.Column="1" x:Name="ScanFilter" Text="*.img" Watermark="*.img"/>
+                  <Button Grid.Column="2" Classes="tool" Content="选择…" Click="OnBrowseScanDir"/>
+                  <Button Grid.Column="3" Classes="primary" Content="扫描" Click="OnScanImages"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                  <Border Classes="soft"><StackPanel><TextBlock Text="文件" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/><TextBlock x:Name="ScanTotal" Text="0" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextMain}"/></StackPanel></Border>
+                  <Border Grid.Column="1" Classes="soft"><StackPanel><TextBlock Text="带 AVB" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/><TextBlock x:Name="ScanSigned" Text="0" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource Accent}"/></StackPanel></Border>
+                  <Border Grid.Column="2" Classes="soft"><StackPanel><TextBlock Text="无 AVB" FontSize="10.5" Foreground="{DynamicResource TextMuted}"/><TextBlock x:Name="ScanPlain" Text="0" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/></StackPanel></Border>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock x:Name="ScanStatus" Classes="sub" Text="尚未扫描"/>
+                  <Button Grid.Column="1" x:Name="ExportBtn" Classes="tool" Content="导出报告" Click="OnExportScan"/>
+                </Grid>
+                <ListBox x:Name="ScanList" Height="200">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="*,130,90,110,80,80">
+                        <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Partition}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Algorithm}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        <TextBlock Grid.Column="4" Text="{Binding Rollback}" FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                        <TextBlock Grid.Column="5" Text="{Binding SizeText}" FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+  </Grid>
+</UserControl>

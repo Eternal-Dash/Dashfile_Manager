@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.ModuleInstallWindow"
+        Title="刷入模块" Width="760" Height="580"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+  <DockPanel LastChildFill="True">
+
+    <Border Classes="bar" DockPanel.Dock="Top">
+      <StackPanel Spacing="2">
+        <TextBlock x:Name="FileText" Text="" FontSize="15" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"/>
+        <TextBlock Classes="sub" Text="安装过程中若脚本需要，可点击下方按键发送音量/电源事件"/>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="footer" DockPanel.Dock="Bottom" Padding="14,8">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Classes="sub" Text="设备按键：" VerticalAlignment="Center"/>
+          <Button Classes="tool" Content="音量 −" Click="OnVolDown"/>
+          <Button Classes="tool" Content="音量 ＋" Click="OnVolUp"/>
+          <Button Classes="tool" Content="电源" Click="OnPower"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1" x:Name="StateText" Classes="sub" Margin="14,0"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        <Button Grid.Column="2" Classes="tool" x:Name="CloseBtn" Content="关闭" Click="OnClose" IsEnabled="False"/>
+      </Grid>
+    </Border>
+
+    <TextBox x:Name="LogBox"
+             AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap"
+             FontFamily="Consolas, Cascadia Mono, monospace" FontSize="13.5"
+             Background="{DynamicResource PanelAlt}"
+             Foreground="{DynamicResource TextSub}"
+             BorderThickness="0" Padding="14,12"
+             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+  </DockPanel>
+</Window>

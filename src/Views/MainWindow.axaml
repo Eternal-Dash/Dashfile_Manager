@@ -1,0 +1,1336 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctl="using:DashFile.Controls"
+        xmlns:papi="using:DashFile.PluginApi.Controls"
+        x:Class="DashFile.Views.MainWindow"
+        Title="{Binding WindowTitle}"
+        Icon="/Assets/app-icon.png"
+        Width="1135" Height="707"
+        MinWidth="960" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+
+  <Window.Resources>
+    <ctl:FileIcon x:Key="FileIconConv"/>
+    <StreamGeometry x:Key="IcoDevice">M5,1.6 h6 v12.8 h-6 z M7,12.8 h2</StreamGeometry>
+    <StreamGeometry x:Key="IcoStatus">M3,8.4 l3.2,3.2 L13,5</StreamGeometry>
+    <StreamGeometry x:Key="IcoLink">M6,2.5 v3 M10,2.5 v3 M4.5,5.5 h7 v2.2 h-7 z M8,11 v3</StreamGeometry>
+    <StreamGeometry x:Key="IcoSerial">M3,3 v10 M5,3 v10 M7,3 v10 M9.5,3 v10 M12,3 v10</StreamGeometry>
+    <StreamGeometry x:Key="IcoTag">M2.5,7 l5,-4.5 h5 v5 l-4.5,5 z</StreamGeometry>
+    <StreamGeometry x:Key="IcoChip">M5,5 h6 v6 h-6 z M3,6.5 h2 M3,9.5 h2 M11,6.5 h2 M11,9.5 h2 M6,3 v2 M9,3 v2 M6,11 v2 M9,11 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoAndroid">M5,7 h6 v5 h-6 z M6,4 v2 M10,4 v2 M4,8 v3 M12,8 v3</StreamGeometry>
+    <StreamGeometry x:Key="IcoLock">M4.5,7 h7 v6.2 h-7 z M6,7 v-2 h4 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoBox">M3,5 l5,-2.5 l5,2.5 v6 l-5,2.5 l-5,-2.5 z M3,5 l5,2.5 l5,-2.5 M8,7.5 v6</StreamGeometry>
+    <StreamGeometry x:Key="IcoCalendar">M3,4.5 h10 v9 h-10 z M3,7.5 h10 M6,2.5 v3 M10,2.5 v3</StreamGeometry>
+    <StreamGeometry x:Key="IcoLayers">M8,2.2 l6,3 l-6,3 l-6,-3 z M2,8 l6,3 l6,-3 M2,11 l6,3 l6,-3</StreamGeometry>
+    <StreamGeometry x:Key="IcoOs">M2.5,3.6 h11 v8.8 h-11 z M2.5,6.6 h11</StreamGeometry>
+    <StreamGeometry x:Key="IcoShield">M8,2 l5,2.5 v3.4 l-5,6.1 l-5,-6.1 v-3.4 z M5.6,8 l2,2 l3.6,-3.6</StreamGeometry>
+    <StreamGeometry x:Key="IcoRam">M3,5.4 h10 v5.2 h-10 z M5,5.4 v-2 M8,5.4 v-2 M11,5.4 v-2 M5,10.6 v2 M8,10.6 v2 M11,10.6 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoDisk">M2.5,5 h11 v6 h-11 z M4,8 h2.5</StreamGeometry>
+    <StreamGeometry x:Key="IcoBattery">M3,5.6 h8.4 v4.8 h-8.4 z M11.4,7.1 h2 v1.8 h-2 z M4.8,7 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoScreen">M2,3.8 h12 v8.4 h-12 z M5,14 h6</StreamGeometry>
+    <StreamGeometry x:Key="IcoCores">M4,4 h3 v3 h-3 z M9,4 h3 v3 h-3 z M4,9 h3 v3 h-3 z M9,9 h3 v3 h-3 z</StreamGeometry>
+    <StreamGeometry x:Key="IcoPin">M9.5,2.2 a1.4,1.4 0 1,1 -2.8,0 a1.4,1.4 0 1,1 2.8,0 M8.1,3.6 v4.2 l1.6,2.2 h-4.4 l1.6,-2.2 z M8.1,10 v3.6</StreamGeometry>
+    <StreamGeometry x:Key="IcoFolder">M2,4.2 h4.1 l1.4,1.6 h6.5 v7.4 h-12 z</StreamGeometry>
+    <StreamGeometry x:Key="IcoPuzzle">M3,4.5 h3.4 v2 h2 v-2 h3.4 v3.4 h2 v2 h-2 v3.4 h-3.4 v-2 h-2 v2 h-3.4 z</StreamGeometry>
+  </Window.Resources>
+
+  <Panel>
+
+  <DockPanel LastChildFill="True">
+
+    <Border Classes="bar" DockPanel.Dock="Top" Padding="18,10">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <!-- 品牌标记：一个小色块，给顶栏一个视觉锚点 -->
+          <Border Width="7" Height="7" CornerRadius="3.5" Background="{DynamicResource Accent}"
+                  VerticalAlignment="Center" Margin="0,1,0,0" IsHitTestVisible="False"/>
+          <TextBlock Classes="brand" Text="DashFile"/>
+          <Border Width="1" Height="16" Background="{DynamicResource Stroke}" VerticalAlignment="Center"/>
+          <TextBlock Classes="sub" Text="设备"/>
+          <ComboBox Classes="dev" Width="300" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Display}" FontSize="13.5"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button Classes="tool" Content="重新查找设备" Command="{Binding RefreshDevicesCommand}"/>
+          <Button Classes="tool" Content="清理痕迹" Click="OnCleanTraces" Margin="6,0,0,0"
+                  ToolTip.Tip="清除本工具在手机上留下的调试痕迹"/>
+          <Border Classes="badge" Classes.on="{Binding IsRoot}" Margin="6,0,0,0">
+            <TextBlock Text="{Binding RootBadge}"/>
+          </Border>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="tool" Content="取消" Command="{Binding CancelInstallCommand}"
+                  IsVisible="{Binding IsInstalling}" Margin="0,0,4,0"
+                  ToolTip.Tip="中止正在进行的 APK 安装"/>
+          <Path Data="{StaticResource IcoBattery}" IsVisible="{Binding IsDeviceTab}"
+                Stroke="{DynamicResource TextSub}" StrokeThickness="1.25" Width="15" Height="15"
+                Stretch="Uniform" VerticalAlignment="Center"/>
+          <TextBlock Classes="value" Text="{Binding RightStatusText}" MaxWidth="360"
+                     TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border DockPanel.Dock="Top" Background="{DynamicResource Panel}" Padding="14,8"
+            BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <!-- 主标签：滑动指示器 + 切换动画由 SegmentedTabs 统一提供（和插件子页共用同一份实现） -->
+        <Border Classes="seg">
+          <papi:SegmentedTabs x:Name="MainTabs" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+            <Button Classes="seg tabbtn" Content="设备信息" Command="{Binding ShowDeviceTabCommand}"/>
+            <Button Classes="seg tabbtn" Content="文件管理" Command="{Binding ShowFileTabCommand}"/>
+            <Button Classes="seg tabbtn" Content="模块管理" Command="{Binding ShowModulesTabCommand}"/>
+            <Button Classes="seg tabbtn" Content="应用管理" Command="{Binding ShowAppsTabCommand}"/>
+            <Button Classes="seg tabbtn" Content="插件" Command="{Binding ShowPluginsTabCommand}"/>
+            <Button Classes="seg tabbtn" Content="设置" Command="{Binding ShowSettingsTabCommand}"/>
+          </papi:SegmentedTabs>
+        </Border>
+        <TextBlock Classes="sub" Text="{Binding DeviceSub}" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" MaxWidth="600"/>
+      </StackPanel>
+    </Border>
+
+    <Grid>
+    <!-- ================= 设备信息页 ================= -->
+    <Grid x:Name="DevPage" IsVisible="{Binding IsDeviceTab}" Margin="16,12" RowDefinitions="Auto,*" RowSpacing="12">
+
+      <!-- 标题行：按钮贴窗口最右 -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Text="设备信息" FontSize="18" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+        <Button Grid.Column="1" Classes="tool" Content="重新读取" FontSize="13.5" Padding="14,5"
+                Command="{Binding RefreshDeviceInfoCommand}"/>
+        <Button Grid.Column="2" Classes="tool" Content="重置连接" FontSize="13.5" Padding="14,5"
+                Command="{Binding ResetConnectionCommand}"/>
+      </Grid>
+
+      <Grid Grid.Row="1" x:Name="DevGrid">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="540"/>
+          <ColumnDefinition Width="10"/>
+          <ColumnDefinition Width="346"/>
+        </Grid.ColumnDefinitions>
+
+
+        <!-- ============ 左栏：参数卡（撑满） + 快捷重启（贴底） ============ -->
+        <Grid Grid.Column="0" RowDefinitions="*,Auto" RowSpacing="12">
+
+          <Border Grid.Row="0" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                  BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="16,10">
+            <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
+              <UniformGrid Grid.Column="0" Rows="11" Columns="1">
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoStatus}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="设备状态" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevStatus}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoLink}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="连接类型" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevLink}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoSerial}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="设备序列号" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevSerial}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoDevice}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="设备名称" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevModel}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoTag}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="设备代号" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevCodename}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoAndroid}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="安卓版本" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevAndroid}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoLock}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="解锁状态" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevUnlock}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoBox}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="版本信息" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevVersion}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="内核版本" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevKernel}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoCalendar}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="构建日期" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevBuildDate}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="A/B 分区" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevSlot}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+              </UniformGrid>
+              <Border Grid.Column="1" Width="1" Background="{DynamicResource StrokeSoft}" Margin="0,6"/>
+              <UniformGrid Grid.Column="2" Rows="11" Columns="1">
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="CPU 厂家" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevCpuVendor}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="CPU 型号" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevCpuModel}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="CPU 名称" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevCpuName}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoOs}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="操作系统" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevOs}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="SELinux" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevSelinux}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoRam}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="内存" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevRam}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoDisk}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="存储（/data）" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevStorage}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoBattery}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="电池" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevBatteryText}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoScreen}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="屏幕分辨率" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevScreen}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="CPU 核心" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevCores}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="22,92,*">
+                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                            Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="系统架构" FontSize="14" Foreground="{DynamicResource TextMuted}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="2" Text="{Binding DevRing}" FontSize="14.5" Foreground="{DynamicResource TextMain}"
+                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                    </Grid>
+                  </UniformGrid>
+            </Grid>
+          </Border>
+
+          <Border Grid.Row="1" Height="179" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                  BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,10">
+            <Grid RowDefinitions="Auto,*" RowSpacing="6">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <TextBlock Text="快捷重启" FontSize="15.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+                <Border Grid.Column="1" Classes="badge" Padding="10,3">
+                  <TextBlock Text="{Binding DeviceModeText}" FontSize="13.5"/>
+                </Border>
+              </Grid>
+              <UniformGrid Grid.Row="1" Columns="5">
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootSystemCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoOs}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="System" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootBootloaderCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Fastboot" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootFastbootdCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Fastbootd" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootRecoveryCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Recovery" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootEdlCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoDisk}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="9008(EDL)" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+              </UniformGrid>
+            </Grid>
+          </Border>
+        </Grid>
+
+        <!-- ============ 右栏：跨满左侧两行，底边自动对齐 ============ -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+
+          <!-- 1. Root 实现方式 -->
+          <Border Grid.Row="0" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                  BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,12">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="7">
+                <TextBlock Text="Root 实现方式" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}" Margin="0,0,0,2"/>
+                <Grid ColumnDefinitions="76,*">
+                  <TextBlock Text="实现方式" FontSize="13.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding RootImpl}" FontSize="14.5" Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+                <Grid ColumnDefinitions="76,*">
+                  <TextBlock Text="管理器版本" FontSize="13.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding ManagerVersion}" FontSize="14.5" Foreground="{DynamicResource TextMain}" FontFamily="Consolas, Cascadia Mono, monospace"/>
+                </Grid>
+                <Grid ColumnDefinitions="76,*">
+                  <TextBlock Text="工作模式" FontSize="13.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Text="{Binding ManagerMode}" FontSize="14.5" Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+                <TextBlock Text="{Binding RootHint}" FontSize="11" Foreground="{DynamicResource TextMuted}"
+                           TextWrapping="Wrap" Margin="0,1,0,0"/>
+              </StackPanel>
+              <Border Grid.Column="1" Width="24" Height="24" CornerRadius="{DynamicResource RadiusCard}" Background="{DynamicResource Accent}"
+                      VerticalAlignment="Bottom" Margin="8,0,0,0">
+                <Path Data="M3,8.6 L6.2,11.8 L13,4.6" Stroke="{DynamicResource OnAccent}" StrokeThickness="2.2"
+                      Stretch="Uniform" Width="13" Height="13"
+                      StrokeLineCap="Round" StrokeJoin="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+            </Grid>
+          </Border>
+
+          <!-- 2 & 3. 超级用户 / 模块 -->
+          <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
+            <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                    BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="10,10">
+              <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource Accent}" StrokeThickness="1.5" Width="22" Height="22"
+                      Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Text="超级用户" FontSize="13.5" Foreground="{DynamicResource TextSub}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding SuperuserCount}" FontSize="26" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                    BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="10,10">
+              <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path Data="{StaticResource IcoPuzzle}" Stroke="{DynamicResource Accent}" StrokeThickness="1.5" Width="22" Height="22"
+                      Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Text="模块" FontSize="13.5" Foreground="{DynamicResource TextSub}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding ModuleCount}" FontSize="26" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <!-- 4 & 5. CPU 折线（撑满剩余） + 内存条 -->
+          <Border Grid.Row="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                  BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,12">
+            <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="6">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <TextBlock Text="CPU 占用" FontSize="14" Foreground="{DynamicResource TextMuted}"/>
+                <TextBlock Grid.Column="1" Text="{Binding CpuText}" FontSize="14.5" Foreground="{DynamicResource AccentText}"
+                           FontFamily="Consolas, Cascadia Mono, monospace"/>
+              </Grid>
+              <Border Grid.Row="1" Background="{DynamicResource ChartBg}" BorderBrush="{DynamicResource StrokeSoft}"
+                      BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}" Padding="6,4" ClipToBounds="True">
+                <ctl:SparkLine Values="{Binding CpuPoints}" LineBrush="{DynamicResource Accent}" FillBrush="{DynamicResource AccentFill}"
+                               MinHeight="46"/>
+              </Border>
+              <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                <TextBlock Text="内存" FontSize="14" Foreground="{DynamicResource TextMuted}"/>
+                <TextBlock Grid.Column="1" Text="{Binding RamText}" FontSize="14"
+                           Foreground="{DynamicResource TextSub}"
+                           FontFamily="Consolas, Cascadia Mono, monospace"/>
+              </Grid>
+              <ProgressBar Grid.Row="3" Height="10" Minimum="0" Maximum="100"
+                           Value="{Binding RamPercent}" Foreground="{DynamicResource Accent}" Background="{DynamicResource TrackBg}" CornerRadius="{DynamicResource RadiusCtl}"/>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <DockPanel x:Name="FilePage" IsVisible="{Binding IsFileTab}" LastChildFill="True"
+               DragDrop.AllowDrop="True" DragDrop.DragOver="OnPageDragOver"
+               DragDrop.Drop="OnPageDrop" DragDrop.DragLeave="OnPageDragLeave">
+
+      <Border Classes="bar" DockPanel.Dock="Top" Background="{DynamicResource Bg}" Padding="14,8"
+              BorderThickness="0,0,0,1" BorderBrush="{DynamicResource StrokeSoft}">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+          <TextBlock Text="当前路径" Classes="sub" VerticalAlignment="Center" Margin="0,0,10,0"/>
+          <Panel Grid.Column="1">
+            <!-- 面包屑：默认显示，可点任意一级 -->
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding !IsPathEditing}">
+              <ItemsControl ItemsSource="{Binding Crumbs}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Text="›" FontSize="13" Margin="6,0" VerticalAlignment="Center"
+                                 Foreground="{DynamicResource TextMuted}" IsVisible="{Binding ShowSeparator}"/>
+                      <Button Classes="crumb" Content="{Binding Name}" Tag="{Binding FullPath}" Click="OnCrumbClick"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <TextBox Classes="path" IsVisible="{Binding IsPathEditing}"
+                     Text="{Binding CurrentPath}" KeyDown="OnPathKeyDown"/>
+          </Panel>
+          <Panel Grid.Column="2">
+            <Button Classes="tool pri" Content="跳转" Margin="8,0,0,0" Command="{Binding GoCommand}"
+                    IsVisible="{Binding IsPathEditing}" Click="OnPathCommit"/>
+            <Button Classes="tool" Content="编辑路径" Margin="8,0,0,0" Command="{Binding BeginPathEditCommand}"
+                    IsVisible="{Binding !IsPathEditing}"/>
+          </Panel>
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+            <Button Classes="icon" Content="↑" Command="{Binding GoUpCommand}" ToolTip.Tip="返回上一级"/>
+            <Button Classes="icon" Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新"/>
+          </StackPanel>
+          <TextBox Grid.Column="4" Classes="path" Width="190" Margin="8,0,0,0"
+                   Watermark="筛选当前目录…" Text="{Binding FilterText}" FontFamily="Microsoft YaHei UI"/>
+        </Grid>
+      </Border>
+
+      <Border DockPanel.Dock="Top" IsVisible="{Binding IsArchiveMode}" Background="{DynamicResource AccentBg}"
+              Padding="14,6" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <TextBlock Text="{Binding ArchiveBanner}" FontSize="13" Foreground="{DynamicResource AccentText}"
+                     VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          <Button Grid.Column="1" Classes="tool pri" Content="保存到压缩包" FontSize="12" Padding="12,4" Click="OnArchiveSave"/>
+          <Button Grid.Column="2" Classes="tool" Content="退出" FontSize="12" Padding="12,4" Click="OnArchiveClose"/>
+        </Grid>
+      </Border>
+
+      <Border DockPanel.Dock="Top" IsVisible="{Binding IsMultiSelect}" Background="{DynamicResource AccentBg}"
+              Padding="14,6" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding MultiSelectHint}" FontSize="13" Foreground="{DynamicResource AccentText}" VerticalAlignment="Center"/>
+          <Button Grid.Column="1" Classes="tool" Content="退出多选" FontSize="12" Padding="12,4" Click="OnExitMultiSelect"/>
+        </Grid>
+      </Border>
+
+      <Border DockPanel.Dock="Top" IsVisible="{Binding IsDragging}" Background="{DynamicResource AccentBg}"
+              Padding="14,6" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding DragHint}" FontSize="13" Foreground="{DynamicResource AccentText}" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1" Text="拖到窗口外松手 = 导出" FontSize="12" Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+
+      <Border Classes="footer" DockPanel.Dock="Bottom" Padding="12,4">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="sub" Text="{Binding SelectionInfo}" TextTrimming="CharacterEllipsis"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+            <Button Classes="icon" Content="{Binding LogToggleText}" Command="{Binding ToggleLogCommand}"/>
+            <Button Classes="icon" Content="{Binding ToolbarToggleText}" Command="{Binding ToggleToolbarCommand}"/>
+            <TextBlock Text="{Binding Signature}" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                       VerticalAlignment="Center" Margin="14,0,2,0"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Classes="footer" DockPanel.Dock="Bottom" IsVisible="{Binding ShowToolbar}">
+        <WrapPanel Orientation="Horizontal">
+          <Button Classes="tool" Content="上传文件" Click="OnUploadClick"/>
+          <Button Classes="tool" Content="下载" Click="OnDownloadClick"/>
+          <Button Classes="tool pri" Content="执行" Click="OnRunClick"/>
+          <Button Classes="tool" Content="删除" Click="OnDeleteClick"/>
+          <Button Classes="tool" Content="重命名" Click="OnRenameClick"/>
+          <Button Classes="tool" Content="新建文件夹" Click="OnNewFolderClick"/>
+          <Button Classes="tool" Content="新建文件" Click="OnNewFileClick"/>
+          <Button Classes="tool" Content="属性" Click="OnPropertyClick"/>
+          <Border Width="1" Height="18" Background="{DynamicResource Stroke}" Margin="6,0"/>
+          <Button Classes="tool" Content="权限" Click="OnPermissionClick"/>
+          <Button Classes="tool" Content="编辑文本" Click="OnEditClick"/>
+          <Border Width="1" Height="18" Background="{DynamicResource Stroke}" Margin="6,0"/>
+          <Button Classes="tool" Content="修复 SELinux 标签" Click="OnRestoreconClick"/>
+          <Button Classes="tool" Content="手动设标签" Click="OnChconClick"/>
+        </WrapPanel>
+      </Border>
+
+      <Border Classes="footer" DockPanel.Dock="Bottom" IsVisible="{Binding ShowLog}" Padding="12,6">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="sub" Text="{Binding HintText}" TextTrimming="CharacterEllipsis"/>
+          <ListBox Classes="plain" ItemsSource="{Binding LogLines}" Background="Transparent" BorderThickness="0" Padding="0"
+                   Height="58" FontFamily="Consolas, Cascadia Mono, monospace" FontSize="12.5"
+                   Foreground="{DynamicResource TextMuted}"/>
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="224,*">
+        <Border Classes="side" Grid.Column="0">
+          <DockPanel LastChildFill="True">
+            <Border Classes="section" DockPanel.Dock="Top">
+              <TextBlock Text="目录" Classes="sub" FontSize="12.5"/>
+            </Border>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          ctl:SmoothScroll.Enabled="True">
+              <!-- 树的高亮也做成"滑块"：Canvas 在滚动内容里，跟着滚动走，只需按行坐标平移 -->
+              <Grid x:Name="TreeHost" Classes="treehost">
+                <Canvas x:Name="TreeOverlay" IsHitTestVisible="False">
+                  <Border x:Name="TreePill" IsVisible="False" IsHitTestVisible="False"
+                          Width="200" Height="{DynamicResource TreeRowH}"
+                          Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource Hairline}"
+                          BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}"
+                          BoxShadow="0 2 8 0 #4A000000">
+                    <Border.Transitions>
+                      <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                        <DoubleTransition Property="Height" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                        <DoubleTransition Property="Width" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                      </Transitions>
+                    </Border.Transitions>
+                  </Border>
+                </Canvas>
+              <ItemsControl x:Name="DirTree" ItemsSource="{Binding TreeRows}"
+                            Background="Transparent"
+                            DragDrop.AllowDrop="True" DragDrop.DragOver="OnTreeDragOver" DragDrop.Drop="OnTreeDrop">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="treeitem" Classes.current="{Binding IsCurrent}"
+                            Classes.droptarget="{Binding IsDropTarget}"
+                            HorizontalAlignment="Stretch" CornerRadius="{DynamicResource RadiusCtl}" Padding="0,0,4,0">
+                      <Grid Margin="{Binding Indent}" ColumnDefinitions="16,20,*" Height="{DynamicResource TreeRowH}">
+                        <Button Grid.Column="0" Classes="treeexp" Click="OnTreeGlyphClick"
+                                IsVisible="{Binding HasChildren}">
+                          <Path Data="M4,2 L8,6.2 L4,10.4" Width="7" Height="9" Stretch="Uniform"
+                                Stroke="{DynamicResource TextMuted}" StrokeThickness="1.5"
+                                StrokeLineCap="Round" StrokeJoin="Round"
+                                Classes.open="{Binding IsExpanded}">
+                            <Path.Transitions>
+                              <Transitions>
+                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.16" Easing="QuarticEaseOut"/>
+                              </Transitions>
+                            </Path.Transitions>
+                            <Path.Styles>
+                              <Style Selector="Path.open">
+                                <Setter Property="RenderTransform" Value="rotate(90deg)"/>
+                              </Style>
+                            </Path.Styles>
+                          </Path>
+                        </Button>
+                        <Path Grid.Column="1" Data="{StaticResource IcoFolder}" Width="15" Height="15"
+                              Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"
+                              Stroke="{DynamicResource TextMuted}" StrokeThickness="1.25"
+                              Fill="{DynamicResource AccentFill}"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="13"
+                                   Margin="4,0,6,0"
+                                   Classes.current="{Binding IsCurrent}"
+                                   Foreground="{DynamicResource TextSub}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                          <TextBlock.Transitions>
+                            <Transitions>
+                              <BrushTransition Property="Foreground" Duration="0:0:0.16"/>
+                            </Transitions>
+                          </TextBlock.Transitions>
+                        </TextBlock>
+                        <Path Grid.Column="2" Data="{StaticResource IcoPin}" Width="11" Height="11"
+                              Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Margin="0,0,8,0" IsVisible="{Binding IsPinned}"
+                              Stroke="{DynamicResource TextMuted}" StrokeThickness="1.2"
+                              Fill="{DynamicResource TextMuted}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              </Grid>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <DockPanel Grid.Column="1" LastChildFill="True">
+          <Border Classes="section" DockPanel.Dock="Top" Padding="0">
+            <Grid ColumnDefinitions="34,*,168,140,116,132" Height="{DynamicResource RowH}">
+              <Button x:Name="HdrName" Grid.Column="1" Classes="hdr" Content="名称" Tag="name" Click="OnHeaderSort"/>
+              <Button x:Name="HdrDate" Grid.Column="2" Classes="hdr" Content="修改日期" Tag="date" Click="OnHeaderSort"/>
+              <Button x:Name="HdrType" Grid.Column="3" Classes="hdr" Content="类型" Tag="type" Click="OnHeaderSort"/>
+              <Button x:Name="HdrSize" Grid.Column="4" Classes="hdr" Content="大小" Tag="size" Click="OnHeaderSort"
+                      HorizontalContentAlignment="Right" Padding="0,0,12,0"/>
+              <TextBlock Grid.Column="5" Text="权限" Classes="sub"/>
+            </Grid>
+          </Border>
+
+          <Panel x:Name="FileListHost" ClipToBounds="True">
+            <Panel.Transitions>
+              <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="QuarticEaseOut"/>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.14"/>
+              </Transitions>
+            </Panel.Transitions>
+            <ListBox x:Name="FilesList" ItemsSource="{Binding Entries}" SelectedItem="{Binding SelectedEntry}"
+                     SelectionChanged="OnFilesSelectionChanged" DoubleTapped="OnRowDoubleTapped"
+                     SelectionMode="Multiple" Background="Transparent" BorderThickness="0" Padding="0"
+                     ctl:SmoothScroll.Enabled="True"
+                     DragDrop.AllowDrop="True" DragDrop.DragOver="OnDragOver" DragDrop.Drop="OnDrop"
+                     DragDrop.DragLeave="OnFilesDragLeave" PointerExited="OnFilesPointerExited">
+              <!-- 自定义模板：把选中滑块放进 ScrollViewer 的内容里（和树的 Canvas 一样），
+                   这样它天然跟着列表滚动，滚动/虚拟化都不会漂；换行时只改 translateY 做滑动。 -->
+              <ListBox.Template>
+                <ControlTemplate>
+                  <ScrollViewer Name="PART_ScrollViewer"
+                                Background="Transparent"
+                                HorizontalScrollBarVisibility="Disabled"
+                                VerticalScrollBarVisibility="Auto">
+                    <Panel>
+                      <!-- 滑块必须画在行内容"之下"：Canvas 是 Panel 的第一个子元素（先画=底层）。
+                           放在 ItemsPresenter 后面会浮在文字上面，把名称/日期/类型/大小整行盖住。
+                           行本身的 Border 背景是透明的（选中态走 SelGhost，alpha=0），所以底层滑块能透出来。 -->
+                      <Canvas x:Name="RowPillLayer" IsHitTestVisible="False">
+                        <Border x:Name="RowPill" IsHitTestVisible="False" IsVisible="False"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Width="200" Height="{DynamicResource RowH}"
+                                Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource Hairline}"
+                                BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}"
+                                BoxShadow="0 1 0 0 #3A000000">
+                          <Border.Transitions>
+                            <Transitions>
+                              <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                              <DoubleTransition Property="Height" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                              <DoubleTransition Property="Width" Duration="0:0:0.18" Easing="QuarticEaseOut"/>
+                            </Transitions>
+                          </Border.Transitions>
+                        </Border>
+                      </Canvas>
+                      <ItemsPresenter Name="PART_ItemsPresenter"
+                                      ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                    </Panel>
+                  </ScrollViewer>
+                </ControlTemplate>
+              </ListBox.Template>
+
+              <ListBox.ItemContainerTheme>
+                <ControlTheme TargetType="ListBoxItem">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="Margin" Value="6,1"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="BorderThickness" Value="1"/>
+                  <Setter Property="BorderBrush" Value="Transparent"/>
+                  <Setter Property="CornerRadius" Value="6"/>
+                  <Setter Property="Template">
+                    <ControlTemplate>
+                      <Border Background="Transparent" BorderBrush="Transparent" BorderThickness="0"
+                              CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                      </Border>
+                    </ControlTemplate>
+                  </Setter>
+
+                </ControlTheme>
+              </ListBox.ItemContainerTheme>
+
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Classes="row" Classes.sel="{Binding $parent[ListBoxItem].IsSelected}"
+                          Margin="0" CornerRadius="{DynamicResource RadiusCtl}">
+                  <Grid ColumnDefinitions="34,*,168,140,116,132" Height="{DynamicResource RowH}">
+                    <Path Grid.Column="0" Data="{Binding Converter={StaticResource FileIconConv}}"
+                          Stroke="{DynamicResource TextSub}" StrokeThickness="1.15"
+                          StrokeLineCap="Round" StrokeJoin="Round"
+                          Width="18" Height="18" Stretch="None" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" ClipToBounds="True" Padding="2,0,8,0">
+                      <ctl:MarqueeText Text="{Binding DisplayName}"
+                                       IsActive="{Binding $parent[ListBoxItem].IsPointerOver}"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextMain}"
+                                       FontSize="14"/>
+                    </Border>
+                    <TextBlock Grid.Column="2" Text="{Binding ModifiedText}" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextMuted}" FontSize="13.5"/>
+                    <TextBlock Grid.Column="3" Text="{Binding TypeText}" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSub}" FontSize="13.5" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="4" Text="{Binding SizeText}" VerticalAlignment="Center"
+                               HorizontalAlignment="Right" Margin="0,0,12,0"
+                               Foreground="{DynamicResource TextMuted}" FontSize="13.5"/>
+                    <TextBlock Grid.Column="5" Text="{Binding Perms}" VerticalAlignment="Center"
+                               FontFamily="Consolas, Cascadia Mono, monospace"
+                               Foreground="{DynamicResource TextSub}" FontSize="13.5"/>
+                  </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- 外部拖入的"当前目录"入口：列表里全是子文件夹时，拖到这条上就上传到当前目录，
+                 不会被误放进光标下面的子文件夹（资源管理器里对应"拖到空白处"）。 -->
+            <Border x:Name="UploadBar" IsVisible="False" VerticalAlignment="Bottom" Margin="10,0,10,10"
+                    Background="{DynamicResource AccentBg}" BorderBrush="{DynamicResource Accent}"
+                    BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,10"
+                    BoxShadow="0 6 20 0 #66000000" IsHitTestVisible="False">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Path Data="{StaticResource IcoFolder}" Width="16" Height="16" Stretch="Uniform"
+                      VerticalAlignment="Center" Stroke="{DynamicResource AccentText}" StrokeThickness="1.3"
+                      Fill="{DynamicResource AccentFill}"/>
+                <TextBlock Text="松开：上传到当前目录" Foreground="{DynamicResource AccentText}"
+                           FontSize="13.5" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding CurrentPath}" Foreground="{DynamicResource TextMuted}"
+                           FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           MaxWidth="420"/>
+              </StackPanel>
+            </Border>
+
+            <!-- 拖入反馈（模仿资源管理器）：整块虚线强调 + 明确的落点文字 -->
+            <Grid x:Name="DropOverlay" IsVisible="False" IsHitTestVisible="False" Margin="6">
+              <Rectangle RadiusX="10" RadiusY="10" Stroke="{DynamicResource Accent}" StrokeThickness="2"
+                         StrokeDashArray="6,4" Opacity="0.95"/>
+              <Border Background="{DynamicResource AccentFill}" BorderBrush="{DynamicResource AccentDeep}"
+                      BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}"
+                      Padding="16,9" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="DropOverlayText" Text="松开即上传" FontSize="13.5"
+                           Foreground="{DynamicResource TextMain}"/>
+              </Border>
+            </Grid>
+
+            <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Spacing="6" IsHitTestVisible="False">
+              <TextBlock Text="这个文件夹是空的" HorizontalAlignment="Center"
+                         Foreground="{DynamicResource TextMuted}" FontSize="14.5"/>
+              <TextBlock Text="可以把文件直接拖进来，或用右键菜单新建" HorizontalAlignment="Center"
+                         Foreground="{DynamicResource TextMuted}" FontSize="13"/>
+            </StackPanel>
+          </Panel>
+        </DockPanel>
+      </Grid>
+    </DockPanel>
+
+    <!-- ================= 模块管理页 ================= -->
+    <DockPanel x:Name="ModPage" IsVisible="{Binding IsModulesTab}" LastChildFill="True">
+
+      <Border Classes="bar" DockPanel.Dock="Top" Background="{DynamicResource Bg}" Padding="14,10"
+              BorderThickness="0,0,0,1" BorderBrush="{DynamicResource StrokeSoft}">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="2">
+            <TextBlock Text="模块管理" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextMain}"/>
+            <TextBlock Classes="sub" Text="{Binding ModulesStatus}"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="tool" Content="刷新模块" Click="OnModulesRefresh"
+                  VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+
+      <ScrollViewer x:Name="ModScroll" DragDrop.AllowDrop="True" DragDrop.DragOver="OnModulesDragOver" DragDrop.Drop="OnModulesDrop"
+                    ctl:SmoothScroll.Enabled="True">
+        <StackPanel Margin="18,14" Spacing="0" MaxWidth="1100" HorizontalAlignment="Stretch">
+          <Border Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                  BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="16,14" Margin="0,0,0,12">
+            <TextBlock Classes="sub" TextWrapping="Wrap"
+                       Text="提示：把模块 .zip 文件直接拖到这里即可刷入（会先询问确认，安装过程中可发送音量键/电源键）。"/>
+          </Border>
+          <ItemsControl ItemsSource="{Binding Modules}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Classes="modcard" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                        BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16" Margin="0,0,0,12">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding Name}" FontSize="15.5" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis"/>
+                      <StackPanel Grid.Column="1" Spacing="7" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ToggleText}" FontSize="12.5"
+                                   Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                        <Button Classes="switch" Classes.on="{Binding Enabled}"
+                                HorizontalAlignment="Right" Click="OnModuleToggle"
+                                ToolTip.Tip="点击启用 / 停用">
+                          <Grid Width="46" Height="24">
+                            <Border Classes="track"/>
+                            <Ellipse Classes="knob"/>
+                          </Grid>
+                        </Button>
+                      </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{Binding SubLine}" Classes="sub"/>
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="13.5"
+                               Foreground="{DynamicResource TextSub}"/>
+                    <Border Height="1" Background="{DynamicResource StrokeSoft}" Margin="0,3,0,1" Opacity="0.6"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <Button Classes="tool pri" Content="提取模块" Click="OnModuleExtract" ToolTip.Tip="把该模块重新打包成 zip 保存到电脑"/>
+                      <Button Classes="tool" Content="执行 action.sh" Click="OnModuleAction"
+                              IsVisible="{Binding HasAction}"
+                              ToolTip.Tip="执行模块自带的 action.sh（输出会显示在弹窗里）"/>
+                      <Button Classes="tool" Content="卸载" Click="OnModuleUninstall"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock IsVisible="{Binding ModulesEmpty}" Classes="sub" Margin="4,10"
+                     Text="没有检测到模块（需要 root，且 /data/adb/modules 下有模块目录）"/>
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+
+    <!-- ================= 应用管理页 ================= -->
+    <Grid x:Name="AppsPage" IsVisible="{Binding IsAppsTab}" Margin="16,12" RowDefinitions="Auto,*" RowSpacing="10">
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+        <Border Classes="seg" VerticalAlignment="Center">
+          <Panel>
+            <Border x:Name="ModePill" Classes="segpill" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                    IsHitTestVisible="False" Width="80" RenderTransform="translateX(9px)">
+              <Border.Transitions>
+                <Transitions>
+                  <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.26" Easing="QuarticEaseOut"/>
+                  <DoubleTransition Property="Width" Duration="0:0:0.26" Easing="QuarticEaseOut"/>
+                </Transitions>
+              </Border.Transitions>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="2">
+              <Button x:Name="ModeUser" Classes="seg tabbtn" Classes.on="{Binding IsUserMode}" Content="用户应用"
+                      Click="OnAppsUserClick"/>
+              <Button x:Name="ModeSys" Classes="seg tabbtn" Classes.on="{Binding IsSysMode}" Content="系统应用"
+                      Click="OnAppsSystemClick"/>
+              <Button x:Name="ModeSuper" Classes="seg tabbtn" Classes.on="{Binding IsSuperMode}" Content="超级用户"
+                      Click="OnAppsSuperClick"/>
+            </StackPanel>
+          </Panel>
+        </Border>
+        <TextBlock Grid.Column="1" Text="{Binding AppsStatus}" Classes="sub" VerticalAlignment="Center" Margin="14,0,0,0"/>
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8">
+          <Button Classes="tool" Content="安装应用" Click="OnAppsInstall" ToolTip.Tip="从电脑选择 APK 安装到手机"/>
+          <Button Classes="tool" Content="刷新" Click="OnAppsRefresh"/>
+        </StackPanel>
+      </Grid>
+
+      <Border Grid.Row="1" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+              BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="8,6" ClipToBounds="True">
+        <ListBox x:Name="AppsList" ItemsSource="{Binding Apps}" Background="Transparent" BorderThickness="0" Padding="0"
+                 ctl:SmoothScroll.Enabled="True">
+          <ListBox.ItemContainerTheme>
+            <ControlTheme TargetType="ListBoxItem">
+              <Setter Property="Padding" Value="0"/>
+              <Setter Property="Margin" Value="4,0"/>
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <Panel>
+                    <!-- 悬停/选中改用"叠层 + Opacity 过渡"：只动透明度，不插值颜色，
+                         既不会闪白也能淡入；选中层永远压在悬停层上面 -->
+                    <Border Classes="hoverLayer" Background="{DynamicResource RowHover}"
+                            CornerRadius="{DynamicResource RadiusCtl}" Opacity="0">
+                      <Border.Transitions>
+                        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.10"/></Transitions>
+                      </Border.Transitions>
+                    </Border>
+                    <Border Classes="selLayer" Background="{DynamicResource SelBg}"
+                            CornerRadius="{DynamicResource RadiusCtl}" Opacity="0">
+                      <Border.Transitions>
+                        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.14"/></Transitions>
+                      </Border.Transitions>
+                    </Border>
+                    <Border CornerRadius="{DynamicResource RadiusCtl}" Padding="{TemplateBinding Padding}">
+                      <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Border>
+                  </Panel>
+                </ControlTemplate>
+              </Setter>
+              <Style Selector="^:pointerover /template/ Border.hoverLayer">
+                <Setter Property="Opacity" Value="1"/>
+              </Style>
+              <Style Selector="^:selected /template/ Border.selLayer">
+                <Setter Property="Opacity" Value="1"/>
+              </Style>
+            </ControlTheme>
+          </ListBox.ItemContainerTheme>
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Panel>
+              <Grid ColumnDefinitions="Auto,*,Auto" Height="66" Margin="8,0">
+                <!-- 图标统一放进 44px 圆角底座：透明底的启动图标也能对齐 -->
+                <Grid Grid.Column="0" Width="44" Height="44" VerticalAlignment="Center">
+                  <Border CornerRadius="12" Background="{DynamicResource Panel}"
+                          BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="1"/>
+                  <Border CornerRadius="10" Margin="3" Background="{Binding FallbackBrush}" IsVisible="{Binding !HasIcon}">
+                    <TextBlock Text="{Binding Initial}" FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource OnColor}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <Image Source="{Binding Icon}" Width="38" Height="38" IsVisible="{Binding HasIcon}"/>
+                </Grid>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="2" x:Name="AppInfoCol">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"/>
+                    <Border IsVisible="{Binding IconUncertain}" Background="{DynamicResource WarnBg}" CornerRadius="4"
+                            Padding="4,1" VerticalAlignment="Center" ToolTip.Tip="图标为推测结果，可能不准确">
+                      <TextBlock Text="图标可能不准" FontSize="10.5" Foreground="{DynamicResource WarnFg}"/>
+                    </Border>
+                  </StackPanel>
+                  <TextBlock Text="{Binding Version}" FontSize="12"
+                             Foreground="{DynamicResource TextMuted}"
+                             FontFamily="Consolas, Cascadia Mono, monospace"/>
+                  <TextBlock Text="{Binding Package}" FontSize="11.5"
+                             Foreground="{DynamicResource TextMuted}"
+                             FontFamily="Consolas, Cascadia Mono, monospace"
+                             TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <Button Grid.Column="2" Classes="switch" Classes.on="{Binding IsGranted}"
+                        IsVisible="{Binding ShowSwitch}" IsEnabled="{Binding CanToggleRoot}" Click="OnAppToggleRoot"
+                        VerticalAlignment="Center" Margin="8,0,10,0" ToolTip.Tip="点击授予 / 取消 root 权限">
+                  <Grid Width="46" Height="24">
+                    <Border Classes="track"/>
+                    <Ellipse Classes="knob"/>
+                  </Grid>
+                </Button>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                            IsVisible="{Binding ShowActions}"
+                            VerticalAlignment="Center" Margin="8,0,4,0">
+                  <Button Classes="appact" Content="详情" Click="OnAppDetail"/>
+                  <Button Classes="appact" Content="卸载" Click="OnAppUninstall"/>
+                  <Button Classes="appact" Content="提取安装包" Click="OnAppExtract"/>
+                </StackPanel>
+              </Grid>
+                <Border Height="1" VerticalAlignment="Bottom" Background="{DynamicResource Divider}" Margin="8,0,8,0"/>
+              </Panel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+    </Grid>
+
+    <!-- ================= 插件页 ================= -->
+    <Grid x:Name="PluginPage" Classes="plug" IsVisible="{Binding IsPluginsTab}" Margin="16,12" RowDefinitions="Auto,*" RowSpacing="12"
+      DragDrop.AllowDrop="True" DragDrop.DragOver="OnPluginDragOver" DragDrop.DragLeave="OnPluginDragLeave" DragDrop.Drop="OnPluginDrop">
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Spacing="3" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Path Data="{StaticResource IcoPuzzle}" Width="18" Height="18" Stretch="Uniform"
+                  Stroke="{DynamicResource Accent}" StrokeThickness="1.3" VerticalAlignment="Center"/>
+            <TextBlock Text="插件" FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
+          </StackPanel>
+          <TextBlock Classes="sub" Text="{Binding PluginsStatus}"/>
+        </StackPanel>
+        <Button Grid.Column="1" Classes="tool" Content="安装 .dfp" Click="OnPluginInstallClick"
+                VerticalAlignment="Center" ToolTip.Tip="安装 .dfp 插件包（也可把 .dfp 拖进本页）"/>
+        <Button Grid.Column="2" Classes="tool" Content="打开插件目录" Command="{Binding OpenPluginFolderCommand}"
+                VerticalAlignment="Center"/>
+        <Button Grid.Column="3" Classes="tool pri" Content="重新加载" Command="{Binding ReloadPluginsCommand}"
+                VerticalAlignment="Center"/>
+      </Grid>
+
+      <Grid Grid.Row="1" ColumnDefinitions="300,12,*">
+        <Border Grid.Column="0" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="8,6" ClipToBounds="True">
+          <Grid RowDefinitions="*,Auto">
+            <ListBox x:Name="PluginListBox" ItemsSource="{Binding PluginList}" SelectedItem="{Binding SelectedPlugin}"
+                     Background="Transparent" BorderThickness="0" Padding="0" ctl:SmoothScroll.Enabled="True">
+              <ListBox.ItemContainerTheme>
+                <ControlTheme TargetType="ListBoxItem">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="Margin" Value="3,2"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="Template">
+                    <ControlTemplate>
+                      <Panel>
+                        <Border Classes="hoverLayer" Background="{DynamicResource RowHover}"
+                                CornerRadius="{DynamicResource RadiusCtl}" Opacity="0">
+                          <Border.Transitions>
+                            <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.10"/></Transitions>
+                          </Border.Transitions>
+                        </Border>
+                        <Border Classes="selLayer" Background="{DynamicResource SelBg}"
+                                CornerRadius="{DynamicResource RadiusCtl}" Opacity="0">
+                          <Border.Transitions>
+                            <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.14"/></Transitions>
+                          </Border.Transitions>
+                        </Border>
+                        <Border CornerRadius="{DynamicResource RadiusCtl}" Padding="{TemplateBinding Padding}">
+                          <ContentPresenter Content="{TemplateBinding Content}"
+                                            ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                        </Border>
+                      </Panel>
+                    </ControlTemplate>
+                  </Setter>
+                  <Style Selector="^:pointerover /template/ Border.hoverLayer">
+                    <Setter Property="Opacity" Value="1"/>
+                  </Style>
+                  <Style Selector="^:selected /template/ Border.selLayer">
+                    <Setter Property="Opacity" Value="1"/>
+                  </Style>
+                </ControlTheme>
+              </ListBox.ItemContainerTheme>
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Spacing="5" Margin="8,8">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                      <!-- 图标由插件清单的 icon 字段决定，作者不填就是默认菱形 -->
+                      <TextBlock Grid.Column="0" Text="{Binding IconText}" FontSize="14"
+                                 VerticalAlignment="Center" Foreground="{DynamicResource TextSub}"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center"/>
+                      <Border Grid.Column="2" Background="{DynamicResource ChipBg}"
+                              BorderBrush="{DynamicResource ChipBorder}" BorderThickness="1"
+                              CornerRadius="{DynamicResource RadiusPill}" Padding="7,1">
+                        <TextBlock Text="{Binding BadgeText}" FontSize="10.5"
+                                   Foreground="{DynamicResource TextMuted}"/>
+                      </Border>
+                    </Grid>
+                    <TextBlock Text="{Binding SubLine}" FontSize="11.5" Foreground="{DynamicResource TextMuted}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Summary}" FontSize="12" Foreground="{DynamicResource TextSub}"
+                               TextWrapping="Wrap" MaxHeight="38" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Error}" FontSize="11" Foreground="{DynamicResource Danger}"
+                               TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Grid.Row="1" IsVisible="{Binding PluginsEmpty}" Classes="sub" Margin="10,14"
+                       TextWrapping="Wrap"
+                       Text="还没有插件。把 .dfp 拖进本页，或点右上角「安装 .dfp」。"/>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="16,14" ClipToBounds="True">
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+              <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedPlugin.Name}" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMain}"/>
+                <!-- 版本行 + 插件推送的能力徽标 / 状态（都不换行，窄窗口优先保留信息、压缩副标题） -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding SelectedPlugin.SubLine}" FontSize="11.5"
+                             Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                  <ItemsControl ItemsSource="{Binding PluginHeaderBadges}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Background="{DynamicResource ChipBg}" BorderBrush="{DynamicResource StrokeSoft}"
+                                BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2">
+                          <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Border Background="{DynamicResource AccentBg}" BorderBrush="{DynamicResource AccentDeep}"
+                          BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="9,2"
+                          VerticalAlignment="Center" IsVisible="{Binding HasPluginStatus}">
+                    <TextBlock Text="{Binding PluginHeaderStatus}" FontSize="11.5"
+                               Foreground="{DynamicResource AccentText}"/>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- 副标题：占满剩余宽度，空间不够时省略号截断 -->
+              <TextBlock Grid.Column="1" Text="{Binding PluginHeaderSubtitle}" FontSize="12.5"
+                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis" IsVisible="{Binding HasPluginSubtitle}"
+                         Margin="14,0,0,0"/>
+
+              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="tool" Content="卸载" Click="OnPluginUninstallClick"
+                        Foreground="{DynamicResource Danger}" ToolTip.Tip="卸载插件（可同时删除插件数据）"/>
+                <TextBlock Text="启用" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                           VerticalAlignment="Center"/>
+                <Button Classes="switch" Classes.on="{Binding SelectedPlugin.Enabled}"
+                        Command="{Binding TogglePluginCommand}" CommandParameter="{Binding SelectedPlugin}"
+                        ToolTip.Tip="启用 / 禁用插件">
+                  <Grid Width="46" Height="24">
+                    <Border Classes="track"/>
+                    <Ellipse Classes="knob"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Grid>
+
+            <TextBlock Grid.Row="1" Text="{Binding SelectedPlugin.Error}" IsVisible="{Binding SelectedPlugin.HasError}"
+                       FontSize="12" Foreground="{DynamicResource Danger}" TextWrapping="Wrap"/>
+
+            <ItemsControl Grid.Row="2" ItemsSource="{Binding PluginGlobalActions}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Classes="tool" Content="{Binding Action.Title}"
+                          ToolTip.Tip="{Binding Action.Description}"
+                          Command="{Binding $parent[ItemsControl].DataContext.RunPluginGlobalActionCommand}"
+                          CommandParameter="{Binding}"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- 子页标签：常驻在上方，选中态用滑动指示器（不再是一排会发光/带补间的普通按钮） -->
+            <Border Grid.Row="3" Classes="seg" HorizontalAlignment="Left"
+                    IsVisible="{Binding ShowPluginTabs}">
+              <papi:SegmentedTabs ItemsSource="{Binding PluginPages}" DisplayMemberPath="Title"
+                                  SelectedItem="{Binding SelectedPluginPage, Mode=TwoWay}"/>
+            </Border>
+
+            <Border Grid.Row="4" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource StrokeSoft}"
+                    BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}" ClipToBounds="True">
+              <Grid>
+                <ContentControl Content="{Binding PluginPageView}"/>
+                <StackPanel IsVisible="{Binding !HasPluginPages}" HorizontalAlignment="Center"
+                            VerticalAlignment="Center" Spacing="8" MaxWidth="460">
+                  <TextBlock Text="这个插件还没有提供页面" FontSize="14.5"
+                             Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                  <TextBlock Text="插件可以通过 AddPage 提供自定义界面，也可以只在文件/应用/模块的右键菜单里增加动作。"
+                             FontSize="12.5" Foreground="{DynamicResource TextMuted}"
+                             TextWrapping="Wrap" TextAlignment="Center"/>
+                  <TextBlock Text="{Binding PluginFolderPath}" FontSize="11"
+                             Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
+                             HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- 拖入 .dfp 的落点提示 -->
+      <Border x:Name="PluginDropHint" Grid.RowSpan="2" IsVisible="False"
+              Background="#E614121C" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1"
+              CornerRadius="{DynamicResource RadiusCard}" IsHitTestVisible="False">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <Path Data="{StaticResource IcoPuzzle}" Width="38" Height="38" Stretch="Uniform"
+                Stroke="{DynamicResource Accent}" StrokeThickness="1.2" HorizontalAlignment="Center"/>
+          <TextBlock Text="松开以安装 .dfp 插件" FontSize="18" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/>
+          <TextBlock Text="一次可拖入多个包；已存在的插件请先卸载" FontSize="12.5"
+                     Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- ================= 设置页 ================= -->
+    <Grid x:Name="SetPage" IsVisible="{Binding IsSettingsTab}" Margin="16,12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
+
+      <StackPanel Grid.Row="0" Spacing="2">
+        <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+        <TextBlock Classes="sub" Text="外观与交互偏好保存在本机，改动立即生效"/>
+      </StackPanel>
+
+      <!-- 左右两栏：左外观、右交互 -->
+      <Grid Grid.Row="1" ColumnDefinitions="*,12,*">
+
+        <Border Grid.Column="0" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+          <StackPanel Spacing="14">
+            <StackPanel Spacing="2">
+              <TextBlock Text="外观" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+              <TextBlock Text="主题色与界面风格，点一下立即生效" FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+              <TextBlock Text="主题色" FontSize="13" Foreground="{DynamicResource TextSub}"/>
+              <ItemsControl ItemsSource="{Binding Themes}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Classes="swatch" Margin="0,0,6,6" ToolTip.Tip="{Binding Name}"
+                            Command="{Binding $parent[ItemsControl].DataContext.ApplyThemeCommand}"
+                            CommandParameter="{Binding}">
+                      <Grid Width="50" Height="50">
+                        <Border Width="38" Height="38" CornerRadius="19" Background="{Binding Brush}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Path IsVisible="{Binding IsSelected}" Data="M2,8 L6,12 L14,3"
+                              Stroke="{DynamicResource OnAccent}" StrokeThickness="2.4" Stretch="Uniform" Width="16" Height="16"
+                              StrokeLineCap="Round" StrokeJoin="Round"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Grid>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <Border Height="1" Background="{DynamicResource Divider}"/>
+
+            <StackPanel Spacing="8">
+              <TextBlock Text="界面风格" FontSize="13" Foreground="{DynamicResource TextSub}"/>
+              <ItemsControl ItemsSource="{Binding Styles}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Classes="stylechip" Classes.on="{Binding IsSelected}"
+                            Content="{Binding Name}" ToolTip.Tip="{Binding Hint}"
+                            Command="{Binding $parent[ItemsControl].DataContext.ApplyStyleOptionCommand}"
+                            CommandParameter="{Binding}"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="标准 = Material You；MIUI = 大圆角、更亮的面" FontSize="12"
+                         Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+                BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="18,16">
+          <StackPanel Spacing="14">
+            <StackPanel Spacing="2">
+              <TextBlock Text="操作方式" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+              <TextBlock Text="文件页支持的手势与拖拽" FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
+            </StackPanel>
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="9" ColumnSpacing="12">
+              <Border Classes="kbd"><TextBlock Text="长按" FontSize="12.5"/></Border>
+              <TextBlock Grid.Column="1" Text="在文件行上按住约半秒 → 进入多选，单击可继续加减" FontSize="13"
+                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <Border Grid.Row="1" Classes="kbd"><TextBlock Text="拖动" FontSize="12.5"/></Border>
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="在应用内拖到文件夹行上松手 → 移动到该文件夹（无需按键）" FontSize="13"
+                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <Border Grid.Row="2" Classes="kbd"><TextBlock Text="拖出" FontSize="12.5"/></Border>
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="拖到窗口外的桌面或资源管理器窗口 → 导出到那个文件夹" FontSize="13"
+                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+              <Border Grid.Row="3" Classes="kbd"><TextBlock Text="拖入" FontSize="12.5"/></Border>
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="把电脑上的文件拖进窗口 → 上传到当前目录或目标文件夹" FontSize="13"
+                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </Grid>
+
+            <Border Height="1" Background="{DynamicResource Divider}"/>
+
+            <StackPanel Spacing="5">
+              <TextBlock Text="小提示" FontSize="13" Foreground="{DynamicResource TextSub}"/>
+              <TextBlock Text="文件列表的表头可以点击排序；右键行可以打开完整菜单（含插件动作）。"
+                         FontSize="12.5" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Grid.Row="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+              BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="20,16">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="5" VerticalAlignment="Center">
+            <TextBlock Text="关于" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+            <TextBlock Text="DashFile · 电脑端安卓文件管理器（ADB + Root）" FontSize="13.5"
+                       Foreground="{DynamicResource TextSub}"/>
+            <TextBlock Text="{Binding AppVersion, StringFormat='版本 {0} · 手机端无需安装任何 App'}"
+                       FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
+            <TextBlock Text="GPL-3.0-or-later 开源 · 源码随仓库提供"
+                       FontSize="12" Foreground="{DynamicResource TextMuted}"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <TextBlock Text="作者" FontSize="12" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+            <TextBlock Text="{Binding Signature}" FontSize="21" FontWeight="SemiBold"
+                       Foreground="{DynamicResource Accent}" HorizontalAlignment="Right"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+      <!-- 关闭时的清理遮罩 -->
+      <Border x:Name="CleanupOverlay" IsVisible="False" Background="{DynamicResource OverlayMask}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+          <TextBlock Text="正在清理临时文件（最多 6 秒）…" FontSize="16" Foreground="{DynamicResource TextMain}"
+                     HorizontalAlignment="Center"/>
+          <TextBlock Text="清理完会自动关闭；超过 6 秒也会直接关掉，不会卡住" FontSize="13"
+                     Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <!-- 全局署名（设备/模块/应用页兜底；文件页与设置页自带） -->
+      <TextBlock Text="酷安@恒定破折号" IsVisible="{Binding ShowFooterSign}"
+                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                 Margin="0,0,16,5" FontSize="11.5" Opacity="0.55"
+                 Foreground="{DynamicResource TextMuted}" IsHitTestVisible="False"/>
+
+      <!-- 右下角轻提示（浮在页面之上） -->
+      <Border x:Name="ToastHost" IsVisible="{Binding IsToastVisible}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+              Margin="0,0,22,22" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+              BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,9" BoxShadow="0 6 20 0 #55000000">
+        <TextBlock Text="{Binding ToastText}" FontSize="13" Foreground="{DynamicResource TextMain}"/>
+      </Border>
+    </Grid>
+
+  </DockPanel>
+
+  <!-- 拖动时跟随光标的提示（比系统拖影轻，但能明确"松开会发生什么"） -->
+  <Canvas x:Name="DragGhostLayer" IsHitTestVisible="False">
+    <Border x:Name="DragGhost" IsVisible="False" Background="{DynamicResource PanelAlt}"
+            BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+            CornerRadius="{DynamicResource RadiusCtl}" Padding="11,6" Opacity="0.96"
+            BoxShadow="0 4 14 0 #40000000">
+      <TextBlock x:Name="DragGhostText" FontSize="12.5" Foreground="{DynamicResource TextMain}"/>
+    </Border>
+  </Canvas>
+  </Panel>
+</Window>

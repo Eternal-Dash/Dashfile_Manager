@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DashFile 插件清单 plugin.json",
+  "description": "放在 .dfp 包根目录，和入口 DLL 同级。字段含义见 docs/插件开发指南.md。",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "assembly",
+    "entryType"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "description": "全局唯一，建议反向域名"
+    },
+    "name": {
+      "type": "string",
+      "description": "插件页显示名"
+    },
+    "version": {
+      "type": "string",
+      "default": "1.0.0",
+      "description": "作者自己定的版本号，宿主原样展示"
+    },
+    "versionCode": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "版本序号，1.2.3 → 1002003，便于判断新旧"
+    },
+    "author": {
+      "type": "string",
+      "description": "作者名，插件页副行原样展示"
+    },
+    "authors": {
+      "type": "string",
+      "description": "多作者写法，填了就优先于 author"
+    },
+    "description": {
+      "type": "string",
+      "description": "一句话说明"
+    },
+    "tagline": {
+      "type": "string",
+      "description": "更短的亮点短语，列表与详情页优先用它"
+    },
+    "license": {
+      "type": "string",
+      "description": "例如 GPL-3.0-or-later"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 6,
+      "description": "能力徽标，显示在插件页头部"
+    },
+    "icon": {
+      "type": "string",
+      "maxLength": 4,
+      "description": "一个 emoji 或 1~2 个汉字"
+    },
+    "homepage": {
+      "type": "string",
+      "description": "主页 / 仓库地址"
+    },
+    "assembly": {
+      "type": "string",
+      "description": "入口 DLL 文件名"
+    },
+    "entryType": {
+      "type": "string",
+      "description": "实现 IDashFilePlugin 的类型全名"
+    },
+    "apiVersion": {
+      "type": "integer",
+      "default": 1,
+      "description": "编译时使用的插件 API 版本"
+    },
+    "minHostVersion": {
+      "type": "string",
+      "description": "要求的最低 DashFile 版本"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "默认是否启用"
+    }
+  },
+  "additionalProperties": true
+}

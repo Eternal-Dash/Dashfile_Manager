@@ -1,0 +1,17 @@
+{
+  "$schema": "../../docs/plugin.schema.json",
+  "id": "com.dashfile.hello",
+  "name": "Hello 示例插件",
+  "version": "1.0.0",
+  "versionCode": 1000000,
+  "author": "your_name",
+  "description": "如你所见，这只是一个实例插件，没什么用捏......",
+  "tagline": "二次开发的起点，改两个文件就是你的插件",
+  "license": "GPL-3.0-or-later",
+  "tags": ["模板", "无第三方依赖"],
+  "icon": "👋",
+  "assembly": "HelloPlugin.dll",
+  "entryType": "HelloPlugin.HelloPlugin",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.0"
+}

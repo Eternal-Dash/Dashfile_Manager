@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.TextEditorWindow"
+        Title="编辑" Width="880" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+  <DockPanel LastChildFill="True">
+    <Border Classes="bar" DockPanel.Dock="Top">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="PathText" Classes="sub" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+        <TextBlock Grid.Column="1" Classes="sub" Text="UTF-8" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+    <Border Classes="footer" DockPanel.Dock="Bottom" Padding="14,8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="HintText" Classes="sub" Text="保存会覆盖远端文件" VerticalAlignment="Center"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Classes="tool" Content="取消" Click="OnCancel"/>
+          <Button Classes="tool" Content="保存" Click="OnSave"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <TextBox x:Name="Editor"
+             AcceptsReturn="True" AcceptsTab="True"
+             TextWrapping="NoWrap"
+             FontFamily="Consolas, Cascadia Mono, monospace"
+             FontSize="14"
+             Background="{DynamicResource PanelAlt}"
+             Foreground="{DynamicResource TextMain}"
+             BorderThickness="0"
+             Padding="12,10"
+             ScrollViewer.VerticalScrollBarVisibility="Auto"
+             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+  </DockPanel>
+</Window>

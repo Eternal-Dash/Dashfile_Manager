@@ -1,0 +1,90 @@
+name: 问题反馈
+description: 有东西不工作、显示不对、或者崩了
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        填得越具体，定位越快。尤其是**日志**和**复现步骤**。
+
+  - type: input
+    id: version
+    attributes:
+      label: DashFile 版本
+      description: 关于页或文件名里能看到
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本
+      placeholder: Windows 11 23H2 / Windows 10 22H2
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统
+      description: 型号 / 安卓版本 / root 实现（KernelSU、Magisk、APatch…）；没有 root 就写"无"
+      placeholder: 例如 PJD110 / Android 16 / KernelSU v3.2.5
+    validations:
+      required: true
+
+  - type: dropdown
+    id: link
+    attributes:
+      label: 连接方式
+      options:
+        - USB 数据线
+        - 无线调试
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从打开程序开始，一步一步写
+      placeholder: |
+        1. 打开 DashFile，连接设备
+        2. 进入「文件管理」，进入 /data/adb
+        3. 右键某个文件 → 权限 → 改成 777
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 有报错原文就贴原文，别只写"报错了"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 程序目录下 Log 文件夹里的 runtime.log / plugins.log，贴相关片段（注意去掉设备序列号等隐私）
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截图或其他说明
+    validations:
+      required: false

@@ -1,0 +1,898 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DashFile.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Resources>
+    <!-- 底色：整体略微提亮，避免纯黑压字 -->
+    <SolidColorBrush x:Key="Bg"         Color="#0B0A10"/>
+    <SolidColorBrush x:Key="Panel"      Color="#14121C"/>
+    <SolidColorBrush x:Key="PanelAlt"   Color="#1E1B28"/>
+    <SolidColorBrush x:Key="Stroke"     Color="#464050"/>
+    <SolidColorBrush x:Key="StrokeSoft" Color="#2E2B36"/>
+    <!-- 文字：三级亮度拉开，最低一级也保证可读 -->
+    <SolidColorBrush x:Key="TextMain"   Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="TextSub"    Color="#DFDFE4"/>
+    <SolidColorBrush x:Key="TextMuted"  Color="#9FA1AA"/>
+    <SolidColorBrush x:Key="Hover"      Color="#2C2639"/>
+    <SolidColorBrush x:Key="Pressed"    Color="#372F4A"/>
+    <SolidColorBrush x:Key="SelBg"      Color="#3F355F"/>
+    <SolidColorBrush x:Key="SelBorder"  Color="#F0ECFA"/>
+    <!-- 主题色（运行时由 ThemeService 覆盖，设置页可一键切换） -->
+    <SolidColorBrush x:Key="Accent"      Color="#A78BFA"/>
+    <SolidColorBrush x:Key="AccentSoft"  Color="#C4B5FD"/>
+    <SolidColorBrush x:Key="AccentText"  Color="#D7CCFE"/>
+    <SolidColorBrush x:Key="AccentBg"    Color="#2E2646"/>
+    <SolidColorBrush x:Key="AccentHover" Color="#3A3058"/>
+    <SolidColorBrush x:Key="AccentDeep"  Color="#4A3E6E"/>
+    <SolidColorBrush x:Key="AccentFill"  Color="#30A78BFA"/>
+    <SolidColorBrush x:Key="KnobFill"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BtnPriBg"    Color="#2E2646"/>
+    <SolidColorBrush x:Key="BtnPriFg"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BtnPriHover" Color="#3A3058"/>
+    <!-- 形状语言（风格切换时会覆盖） -->
+    <CornerRadius x:Key="RadiusCard">12</CornerRadius>
+    <CornerRadius x:Key="RadiusCtl">6</CornerRadius>
+    <CornerRadius x:Key="RadiusPill">11</CornerRadius>
+    <x:Double x:Key="RowH">34</x:Double>
+    <x:Double x:Key="TreeRowH">26</x:Double>
+
+    <!-- 其余界面色也统一走资源，避免散落的硬编码 -->
+    <SolidColorBrush x:Key="StrokeStrong" Color="#3B3450"/>
+    <SolidColorBrush x:Key="ChipBg"       Color="#262135"/>
+    <SolidColorBrush x:Key="ChipBorder"   Color="#3D3654"/>
+    <SolidColorBrush x:Key="ChartBg"      Color="#17131F"/>
+    <SolidColorBrush x:Key="TrackBg"      Color="#2E2840"/>
+    <SolidColorBrush x:Key="OnAccent"     Color="#141019"/>
+    <SolidColorBrush x:Key="CardSel"      Color="#3D3460"/>
+    <!-- 语义色：此前散落在 XAML 里的字面量，统一挪到这里（中性灰/警示色，不随主题色变化） -->
+    <SolidColorBrush x:Key="DropHint"      Color="#66FFFFFF"/>
+    <SolidColorBrush x:Key="WarnBg"        Color="#33FFB74D"/>
+    <SolidColorBrush x:Key="WarnFg"        Color="#FFCC80"/>
+    <SolidColorBrush x:Key="OverlayMask"   Color="#CC000000"/>
+    <SolidColorBrush x:Key="TrackOff"      Color="#3F3F4D"/>
+    <SolidColorBrush x:Key="TrackOffHover" Color="#4A4A5A"/>
+    <SolidColorBrush x:Key="OnColor"       Color="#FFFFFF"/>
+    <!-- 交互叠层 token（2026-10-23 修正"悬停闪白"）
+         Avalonia 11 的 BrushTransition 在非预乘空间插值：
+         Transparent(#00FFFFFF) → 不透明深色(#2A2537) 的中途会经过 #706E73 这种亮灰
+         （实测亮度 110），而选中态 SelBg 只有 54 —— 鼠标划过时像闪了一下白光。
+         所以 hover / pressed 一律改成"同一个白色、只变 alpha"的叠层：
+         中途任何一帧都不会比底色亮，也永远低于选中态。 -->
+    <SolidColorBrush x:Key="RowHover"     Color="#12FFFFFF"/>
+    <!-- 主文件区悬停：比列表行再亮一点（仍远低于 SelBg 的亮度），一眼能看出鼠标在哪一行 -->
+    <SolidColorBrush x:Key="FileHover"    Color="#1EFFFFFF"/>
+    <SolidColorBrush x:Key="HoverLayer"   Color="#16FFFFFF"/>
+    <SolidColorBrush x:Key="PressedLayer" Color="#20FFFFFF"/>
+    <SolidColorBrush x:Key="Divider"      Color="#17FFFFFF"/>
+    <!-- 细白线：卡片/弹出菜单/选中滑块的 1px 描边，用低透明度白色提轮廓 -->
+    <SolidColorBrush x:Key="Hairline"     Color="#2BFFFFFF"/>
+    <SolidColorBrush x:Key="HairlineSoft" Color="#18FFFFFF"/>
+    <!-- SelBg 的"零透明度"版本：给选中行做底色，选中/取消选中时颜色插值不闪白 -->
+    <SolidColorBrush x:Key="SelGhost"     Color="#003A3157"/>
+
+    <SolidColorBrush x:Key="Danger"     Color="#D98080"/>
+    <SolidColorBrush x:Key="Ok"         Color="#8FD0AA"/>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource Bg}"/>
+      <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI"/>
+      <Setter Property="FontSize" Value="14.5"/>
+    </Style>
+
+    <Style Selector="Border.bar">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HairlineSoft}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="Padding" Value="14,9"/>
+    </Style>
+    <Style Selector="Border.footer">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HairlineSoft}"/>
+      <Setter Property="BorderThickness" Value="0,1,0,0"/>
+      <Setter Property="Padding" Value="16,9"/>
+    </Style>
+
+    <Style Selector="TextBlock.brand">
+      <Setter Property="FontSize" Value="16.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="LetterSpacing" Value="0.5"/>
+    </Style>
+    <Style Selector="TextBlock.sub">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBlock.value">
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Button.tool">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="13,7"/>
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.13"/>
+          <BrushTransition Property="Foreground" Duration="0:0:0.13"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.13"/>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09" Easing="CubicEaseOut"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.tool:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeStrong}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="Button.tool:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.97)"/>
+    </Style>
+    <Style Selector="Button.tool:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource PressedLayer}"/>
+    </Style>
+    <Style Selector="Button.tool:disabled /template/ ContentPresenter">
+      <Setter Property="Opacity" Value="0.35"/>
+    </Style>
+
+    <!-- 主操作按钮：暗底强调色 + 亮描边；悬停只提亮描边和文字，
+         不再把整块背景提亮（避免和"选中高亮"抢亮度） -->
+    <Style Selector="Button.pri">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+    </Style>
+    <Style Selector="Button.pri:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="7,4"/>
+      <Setter Property="FontSize" Value="14.5"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.09"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+    </Style>
+
+    <Style Selector="Border.badge">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="9,3"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.badge > TextBlock">
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+    </Style>
+    <Style Selector="Border.badge.on">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+    </Style>
+    <Style Selector="Border.badge.on > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+    </Style>
+
+    <Style Selector="TextBox.path">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, monospace"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="ComboBox.dev">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="MinHeight" Value="34"/>
+      <Setter Property="Padding" Value="8,3"/>
+      <Setter Property="FontSize" Value="13.5"/>
+    </Style>
+
+    <Style Selector="Border.side">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HairlineSoft}"/>
+      <Setter Property="BorderThickness" Value="0,0,1,0"/>
+    </Style>
+
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource HairlineSoft}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="Padding" Value="16,9"/>
+    </Style>
+
+    <!-- 左侧常用位置：去掉系统默认的蓝色选中，统一成淡紫主题 -->
+    <Style Selector="Border.side ListBoxItem">
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="Margin" Value="6,1"/>
+    </Style>
+    <Style Selector="Border.side ListBoxItem /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+    </Style>
+    <Style Selector="Border.side ListBoxItem:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHover}"/>
+    </Style>
+    <Style Selector="Border.side ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <!-- 选中项不再响应悬停提亮：选中必须是列表里最亮的一格 -->
+    <Style Selector="Border.side ListBoxItem:selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+    </Style>
+    <Style Selector="Border.side ListBoxItem:selected TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <Style Selector="Button.qp">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.09"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.qp:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+    </Style>
+    <Style Selector="Button.qp:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+    </Style>
+
+    <Style Selector="TabControl">
+      <Setter Property="Background" Value="{DynamicResource Bg}"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Padding" Value="20,9"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 分段/标签容器：去掉外描边，只留一层浅面（原来 1px 亮边太抢眼） -->
+    <Style Selector="Border.seg">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="4"/>
+    </Style>
+    <Style Selector="Button.seg">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="22,7"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.14"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.seg:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+    </Style>
+    <!-- 标签栏：选中态交给滑动指示器，按钮自身不填色 -->
+    <Style Selector="Button.tabbtn">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <!-- 标签按钮不参与悬停/按下着色：否则会盖住滑动指示器 -->
+    <Style Selector="Button.tabbtn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tabbtn:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tabbtn:pointerover">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextSub}"/>
+    </Style>
+    <Style Selector="Button.tabbtn.on:pointerover">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="Border.segpill">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="BoxShadow" Value="0 1 3 0 #40000000"/>
+    </Style>
+
+    <Style Selector="Button.seg.on /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <!-- 标签栏选中态：完全透明，视觉只留滑动指示器 -->
+    <Style Selector="Button.seg.tabbtn.on /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+      <!-- 这里原来还设了 TextElement.FontWeight=SemiBold。
+           加粗会让按钮变宽 → 点击瞬间布局重排 → 指示器按"旧宽度"算出的位置就全错了，
+           视觉上就是"凭空冒出一个块，而且还在动"。选中态改用颜色区分，保证几何尺寸恒定。 -->
+    </Style>
+
+    <!-- ==========================================================================
+         标签按钮的两级状态（和用户约定一致）：
+           微高亮 = 悬停时出现的一层浅色，移开/移到别的按钮立刻消失（不做补间）
+           高亮   = 明确点击后选中，由滑动指示器表示
+         两者不会出现在同一个按钮上：选中项不再叠悬停底色。
+         ========================================================================== -->
+    <Style Selector="Button.seg.tabbtn /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <!-- 未选中：悬停/按下给微高亮（即时） -->
+    <Style Selector="Button.seg.tabbtn:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+    </Style>
+    <Style Selector="Button.seg.tabbtn:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource PressedLayer}"/>
+    </Style>
+    <Style Selector="Button.seg.tabbtn:focus /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.seg.tabbtn:focus-visible /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.seg.tabbtn:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="Opacity" Value="0.4"/>
+    </Style>
+    <!-- 选中项：指示器已经是"高亮"，这里一律不叠底色（悬停也不再亮一层） -->
+    <Style Selector="Button.seg.tabbtn.on:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.seg.tabbtn.on:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+
+    <Style Selector="Button.circle">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="CornerRadius" Value="15"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.13"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.circle:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Hover}"/>
+    </Style>
+    <Style Selector="Button.circle:disabled /template/ ContentPresenter">
+      <Setter Property="Opacity" Value="0.3"/>
+    </Style>
+    <Style Selector="Button.modtoggle">
+      <Setter Property="Padding" Value="14,6"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Background" Value="{DynamicResource ChipBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ChipBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.modtoggle.on /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <Style Selector="Border.kbd">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="9,3"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.kbd > TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 目录树：展开箭头 -->
+    <Style Selector="Button.treeexp">
+      <Setter Property="Width" Value="16"/>
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.12"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.treeexp:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="Border.row">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.11"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <!-- 文件行的悬停由代码驱动（PointerMoved 打 .hover 类）：
+         Avalonia 的 :pointerover 在窗口失焦/程序化移动指针时偶尔会残留上一次的行，
+         用户看到的就是"高亮留在原位"。自己管可以保证每次移动都换行、离开就清。 -->
+    <Style Selector="Border.row.hover">
+      <Setter Property="Background" Value="{DynamicResource FileHover}"/>
+    </Style>
+    <!-- 单选：高亮由 ScrollViewer 内的 RowPill 画（天然跟随滚动）；
+         行自己保持 SelGhost 透明，避免和滑块叠成双倍亮度。
+         多选 / 滑块定位失败时才退回逐行填 SelBg。 -->
+    <Style Selector="Border.row.sel">
+      <Setter Property="Background" Value="{DynamicResource SelGhost}"/>
+    </Style>
+    <Style Selector="Border.row.sel.hover">
+      <Setter Property="Background" Value="{DynamicResource SelGhost}"/>
+    </Style>
+    <Style Selector="Border.row.sel:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SelGhost}"/>
+    </Style>
+    <Style Selector="ListBox.multi Border.row.sel">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+    </Style>
+    <Style Selector="ListBox.nopill Border.row.sel">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+    </Style>
+
+    <!-- 树行不做 Background 补间：拖拽落点 / 兜底选中是"不透明深色"，
+         从透明或悬停白叠层渐变都会闪；树的高亮由 TreePill 负责，行本身即时切换即可 -->
+    <Style Selector="Border.treeitem">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Border.treeitem:pointerover">
+      <Setter Property="Background" Value="{DynamicResource RowHover}"/>
+    </Style>
+    <!-- 树的当前项：平时不自己填色（交给 TreePill 滑过去），只有定位失败时才兜底 -->
+    <Style Selector="Border.treeitem.current">
+      <Setter Property="Background" Value="{DynamicResource SelGhost}"/>
+    </Style>
+    <!-- 当前项同样不叠悬停亮度（兜底填色规则放最后） -->
+    <Style Selector="Border.treeitem.current:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SelGhost}"/>
+    </Style>
+    <Style Selector="Grid.treehost.nopill Border.treeitem.current">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+    </Style>
+    <!-- 拖拽落点：比选中更醒目一点（拖进来/拖进去都走这条） -->
+    <Style Selector="Border.treeitem.droptarget">
+      <Setter Property="Background" Value="{DynamicResource CardSel}"/>
+    </Style>
+
+    <Style Selector="TextBlock.current">
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- 列表行不再对 Background 做补间：FilesList 的拖拽高亮走 ListBoxItem.Background，
+         透明→不透明深色会闪白；自绘列表已经用 Opacity 叠层做淡入。 -->
+
+    <!-- 应用行内小按钮 -->
+    <Style Selector="Button.appact">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="11,5"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.09"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.appact:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 模块开关：iOS 风格滑动开关 -->
+    <Style Selector="Button.switch">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="3"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.switch:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.94)"/>
+    </Style>
+    <Style Selector="Button.switch Border.track">
+      <Setter Property="Background" Value="{DynamicResource TrackOff}"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.16"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.switch.on Border.track">
+      <Setter Property="Background" Value="{DynamicResource Accent}"/>
+    </Style>
+    <Style Selector="Button.switch:pointerover Border.track">
+      <Setter Property="Background" Value="{DynamicResource TrackOffHover}"/>
+    </Style>
+    <Style Selector="Button.switch.on:pointerover Border.track">
+      <Setter Property="Background" Value="{DynamicResource AccentSoft}"/>
+    </Style>
+    <Style Selector="Button.switch Ellipse.knob">
+      <Setter Property="Fill" Value="{DynamicResource KnobFill}"/>
+      <Setter Property="Width" Value="18"/>
+      <Setter Property="Height" Value="18"/>
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="3,0,0,0"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <ThicknessTransition Property="Margin" Duration="0:0:0.16" Easing="CubicEaseOut"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.switch.on Ellipse.knob">
+      <Setter Property="Margin" Value="25,0,0,0"/>
+    </Style>
+
+    <!-- 开关按钮：Fluent 默认会在 :pointerover / :pressed / :disabled 时
+         往 ContentPresenter 刷一层灰底（ButtonBackgroundPointerOver 等），
+         点下去的瞬间就是一整块灰方形压在轨道和滑块上。这里全部压掉，只留轨道+滑块。 -->
+    <Style Selector="Button.switch /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button.switch:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.switch:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.switch:focus /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.switch:focus-visible /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.switch:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <!-- 风格选项胶囊 -->
+    <Style Selector="Button.stylechip">
+      <Setter Property="Background" Value="{DynamicResource Panel}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}"/>
+      <Setter Property="Padding" Value="18,7"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.stylechip:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Hover}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+    <Style Selector="Button.stylechip.on /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 面包屑路径 -->
+    <Style Selector="Button.crumb">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="5,3"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.crumb:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 可排序表头 -->
+    <Style Selector="Button.hdr">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="2,0,0,0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.hdr:pointerover /template/ ContentPresenter">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 快捷目录小胶囊 -->
+    <Style Selector="Button.qchip">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusPill}"/>
+      <Setter Property="Padding" Value="9,3"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.09"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.qchip:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Hover}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- 设置页：主题色圆形色块 -->
+    <Style Selector="Button.swatch">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.09"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.swatch:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
+    </Style>
+
+    <Style Selector="Button.reboot">
+      <Setter Property="MinHeight" Value="56"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
+      <Setter Property="Background" Value="{DynamicResource ChipBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ChipBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.16"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.16"/>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.16"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.reboot:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+    </Style>
+    <Style Selector="Button.reboot:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+    </Style>
+
+    <!-- 卡片：悬停时轻微上浮 + 描边提亮（短促的线性过渡，只做"确认可点"的暗示） -->
+    <Style Selector="Border.modcard">
+      <Setter Property="RenderTransform" Value="none"/>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.16" Easing="CubicEaseOut"/>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Border.modcard:pointerover">
+      <Setter Property="RenderTransform" Value="translateY(-1px)"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeStrong}"/>
+    </Style>
+
+    <!-- ===== 全局控件基线 =====
+         以前只有自定义 class 的控件有样式，插件页 / 对话框里的 TextBox 还是 Fluent
+         默认的亮灰边框，在这套暗色界面里像贴上去的。这里给最常用的控件一个统一基线。 -->
+
+    <!-- 所有按钮模板里的 ContentPresenter 走同一套 110ms 背景/描边过渡 -->
+    <Style Selector="Button /template/ ContentPresenter">
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.11"/>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.11"/>
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="MinHeight" Value="32"/>
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource Accent}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource AccentFill}"/>
+    </Style>
+    <Style Selector="TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeStrong}"/>
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+    </Style>
+
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="MinHeight" Value="32"/>
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="Padding" Value="10,4"/>
+    </Style>
+
+    <Style Selector="ContextMenu">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="4"/>
+    </Style>
+    <Style Selector="MenuItem">
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+
+    <Style Selector="ToolTip">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+      <Setter Property="Padding" Value="9,5"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSub}"/>
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="Background" Value="{DynamicResource TrackBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+      <Setter Property="MinHeight" Value="8"/>
+    </Style>
+
+    <!-- Fluent 默认列表（目录选择器、日志）的选中/悬停也换成主题色，别留系统蓝 -->
+    <Style Selector="ListBox.plain ListBoxItem">
+      <Setter Property="Padding" Value="5,2"/>
+      <Setter Property="Margin" Value="2,1"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+    </Style>
+    <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
+    </Style>
+    <Style Selector="ListBox.plain ListBoxItem:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource RowHover}"/>
+    </Style>
+    <Style Selector="ListBox.plain ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SelBg}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+    </Style>
+
+    <!-- ============ 插件页：悬停即时反馈 ============
+         插件页（含插件自己渲染的界面）的按钮不要 0.13s 的背景补间：
+         补间在鼠标离开后会"淡出"一段时间，用户感知就是"高亮提示延迟消失"。
+         把 Transitions 置空 = 进入/离开都瞬间切换。 -->
+    <Style Selector=".plug Button.tool">
+      <Setter Property="Transitions" Value="{x:Null}"/>
+    </Style>
+    <Style Selector=".plug Button.seg">
+      <Setter Property="Transitions" Value="{x:Null}"/>
+    </Style>
+
+    <!-- 标签条按钮：手型光标 + 悬停只提亮文字（指示器负责选中态，按钮不许自己填底色） -->
+    <Style Selector="Button.seg.tabbtn">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions" Value="{x:Null}"/>
+    </Style>
+  </Application.Styles>
+</Application>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    DashFile 行为冒烟测试（无设备、无 UI）：
+      本地运行： dotnet run (项目路径 tests/DashFileTests)
+    覆盖的都是"改错就会毁数据/卡死界面"的路径：
+      · SVG pathData 死循环（畸形 vector drawable）
+      · KernelSU 授权表布局识别 + 重排后能否被重新解析（780 / 784 两侧）
+      · 插件扫描跳过 .bak-/删除残留/安装临时目录、恶意 id、数据目录与安装目录分离
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DashFileTests</AssemblyName>
+    <RootNamespace>DashFileTests</RootNamespace>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DashFile.csproj" />
+  </ItemGroup>
+</Project>

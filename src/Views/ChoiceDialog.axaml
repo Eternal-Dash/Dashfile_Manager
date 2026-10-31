@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.ChoiceDialog"
+        Width="460" Height="220"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+
+  <Grid Margin="22,18" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+    <StackPanel Grid.Row="0" Spacing="6">
+      <TextBlock x:Name="TitleText" Text="选择" FontSize="16" FontWeight="SemiBold"
+                 Foreground="{DynamicResource TextMain}"/>
+      <TextBlock x:Name="MessageText" Text="" FontSize="13" Foreground="{DynamicResource TextMuted}"
+                 TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+      <Button x:Name="BtnA" Classes="tool" Content="选项 A" Padding="18,7" Click="OnA"/>
+      <Button x:Name="BtnB" Classes="tool pri" Content="选项 B" Padding="18,7" Click="OnB"/>
+    </StackPanel>
+  </Grid>
+</Window>

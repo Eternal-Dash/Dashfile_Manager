@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.FolderPickerDialog"
+        Width="520" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}"
+        FontFamily="Microsoft YaHei UI, Segoe UI">
+
+  <Grid Margin="18,14" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+    <TextBlock x:Name="TitleText" Grid.Row="0" Text="选择保存位置" FontSize="16" FontWeight="SemiBold"
+               Foreground="{DynamicResource TextMain}"/>
+
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+      <Button Classes="icon" Content="↑" Click="OnUp" ToolTip.Tip="上一级"/>
+      <TextBox x:Name="PathBox" Grid.Column="1" Classes="path" Margin="8,0" IsReadOnly="True"/>
+    </Grid>
+
+    <Border Grid.Row="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Stroke}"
+            BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="8,6">
+      <ListBox x:Name="DirsList" Classes="plain" Background="Transparent" BorderThickness="0" DoubleTapped="OnDirDoubleTap">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,3">
+              <Path Data="M2,4.2 h4.1 l1.4,1.6 h6.5 v7.4 h-12 z" Width="14" Height="14" Stretch="Uniform"
+                    VerticalAlignment="Center" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.25"
+                    Fill="{DynamicResource AccentFill}"/>
+              <TextBlock Text="{Binding}" FontSize="13" Foreground="{DynamicResource TextSub}"
+                         VerticalAlignment="Center"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+      <Button Classes="tool" Content="取消" Padding="20,7" Click="OnCancel"/>
+      <Button Classes="tool pri" Content="保存到这里" Padding="20,7" Click="OnConfirm"/>
+    </StackPanel>
+  </Grid>
+</Window>

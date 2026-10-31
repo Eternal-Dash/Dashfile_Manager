@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>ReverseToolboxPlugin</AssemblyName>
+    <RootNamespace>ReverseToolboxPlugin</RootNamespace>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Authors>恒定破折号 (EternalDash)</Authors>
+    <Product>DashFile</Product>
+    <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 与宿主共用同一份 APK 分析实现（共享源码，避免 877 行两份各自演化） -->
+    <Compile Include="..\..\src\Services\OpenWith\ApkAnalysis.cs" Link="ApkAnalysis.cs" />
+    <!-- 共用同一份 AXML 阅读器：ApkAnalysis 现在只依赖这一份实现（不要再各自复制解析代码） -->
+    <Compile Include="..\..\src\Services\Axml\AxmlReader.cs" Link="AxmlReader.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DashFile.PluginApi\DashFile.PluginApi.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+</Project>
