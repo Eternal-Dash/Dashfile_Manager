@@ -18,6 +18,8 @@ Log/
 /build/_archive/
 /build/ui-shot/
 /build/theme-preview/
+/build/_untrimmed/
+/build/design-review/
 /artifacts/
 *.dfp
 # 例外：仓库里的 plugins/ 是官方插件下载区，要能提交
