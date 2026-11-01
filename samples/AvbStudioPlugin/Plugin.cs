@@ -9,7 +9,7 @@ public sealed class AvbPlugin : PluginBase
     public override PluginMetadata Metadata => new()
     {
         Id = "com.dashfile.avbstudio",
-        Name = "AVB 工作台",
+        Name = "DashFile - AVB 工作台",
         Version = "1.0.0",
         Author = "DashFile",
         Description = "AVB 镜像解析、签名、VBMeta 构建、A/B 批处理与扫描。",
@@ -19,7 +19,7 @@ public sealed class AvbPlugin : PluginBase
     {
         Host.AddPage(PluginPage.FromControl(
             "avb-workbench",
-            "AVB 工作台",
+            "DashFile - AVB 工作台",
             host => new AvbPage(host),
             "解析 / 重签 AVB 镜像，构建 vbmeta，批量处理与扫描。",
             "AVB"));

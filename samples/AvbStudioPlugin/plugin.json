@@ -1,7 +1,7 @@
 {
   "$schema": "../../docs/plugin.schema.json",
   "id": "com.dashfile.avbstudio",
-  "name": "AVB 工作台",
+  "name": "DashFile - AVB 工作台",
   "version": "1.0.0",
   "versionCode": 1000000,
   "author": "EternalDash",

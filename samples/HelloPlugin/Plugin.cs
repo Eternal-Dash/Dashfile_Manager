@@ -24,7 +24,7 @@ public sealed class HelloPlugin : PluginBase
     public override PluginMetadata Metadata => new()
     {
         Id = "com.dashfile.hello",
-        Name = "Hello 示例插件",
+        Name = "DashFile - Hello 示例",
         Version = "1.0.0",
         Author = "your_name",
         Description = "如你所见，这只是一个实例插件，没什么用捏......",

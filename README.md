@@ -7,7 +7,7 @@
   <a href="#构建"><img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt="dotnet"></a>
   <a href="#技术栈"><img src="https://img.shields.io/badge/Avalonia-11.3-8B44AC" alt="avalonia"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="license"></a>
-  <a href="https://github.com/Eternal-Dash/Dashfile_Manager/releases"><img src="https://img.shields.io/badge/release-v1.1.0-brightgreen" alt="release"></a>
+  <a href="https://github.com/Eternal-Dash/Dashfile_Manager/releases"><img src="https://img.shields.io/badge/release-v1.2.0-brightgreen" alt="release"></a>
 </p>
 
 <br/>

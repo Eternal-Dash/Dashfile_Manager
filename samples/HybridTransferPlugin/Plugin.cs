@@ -13,13 +13,13 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
     private IDisposable? _registration;
     public bool IsOperationActive => _provider?.Active == true;
     public string OperationDescription => "双轨文件传输 / 通道检测";
-    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="双轨快传", Version="1.0.2", Author="EternalDash · 原项目 weixiansen574", Description="按大小选择 USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
+    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="DashFile - 双轨快传", Version="1.0.2", Author="EternalDash · 原项目 weixiansen574", Description="按大小选择 USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
-        if (Host is not IPluginFileTransferHost transfers) throw new NotSupportedException("双轨快传需要 DashFile 1.2.1 / API 3。");
+        if (Host is not IPluginFileTransferHost transfers) throw new NotSupportedException("双轨快传需要 DashFile 1.1.0 / API 3。");
         _provider=new HybridProvider(Host.DataDirectory,Host.Log.Info) { IsEnabled=Host.Settings.Get("enabled",true), Wifi=Host.Settings.Get("wifi",true), MaxRails=3, ThresholdBytes=Host.Settings.Get("thresholdBytes",TransferThreshold.DefaultBytes) };
         _registration=transfers.RegisterFileTransferProvider(_provider);
-        Host.AddPage(new PluginPage { Id="hybrid-transfer",Title="双轨快传",Description="USB + Wi-Fi · 完整性校验",Icon="⇄",CreateViewAsync=(_,_)=>Task.FromResult<Control>(CreatePage(transfers)) });
+        Host.AddPage(new PluginPage { Id="hybrid-transfer",Title="DashFile - 双轨快传",Description="USB + Wi-Fi · 完整性校验",Icon="⇄",CreateViewAsync=(_,_)=>Task.FromResult<Control>(CreatePage(transfers)) });
         return Task.CompletedTask;
     }
     private Control CreatePage(IPluginFileTransferHost transfers)

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Configuration = "Release",
     [string]$OutputDir = ""
 )
@@ -25,7 +25,8 @@ $plugins = @(
     @{ Name = "HybridTransferPlugin"; Id = "com.dashfile.hybridtransfer"; Dll = "HybridTransferPlugin.dll" },
     @{ Name = "FastbootFlashPlugin"; Id = "com.dashfile.fastbootflash"; Dll = "FastbootFlashPlugin.dll" },
     @{ Name = "AvbStudioPlugin"; Id = "com.dashfile.avbstudio"; Dll = "AvbStudioPlugin.dll" },
-    @{ Name = "ReverseToolboxPlugin"; Id = "com.dashfile.reversetool"; Dll = "ReverseToolboxPlugin.dll" },
+    # 逆向工具箱：不随仓库分发（源码保留在 samples/ReverseToolboxPlugin，自行构建后可本地使用）
+    # @{ Name = "ReverseToolboxPlugin"; Id = "com.dashfile.reversetool"; Dll = "ReverseToolboxPlugin.dll" },
     # 示例插件：不随仓库 plugins/ 与发布包分发，只作为二次开发的模板（手动取 buildplugin-distcom.dashfile.hello.dfp）
     @{ Name = "HelloPlugin"; Id = "com.dashfile.hello"; Dll = "HelloPlugin.dll" }
 )

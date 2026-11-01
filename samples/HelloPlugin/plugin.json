@@ -1,7 +1,7 @@
 {
   "$schema": "../../docs/plugin.schema.json",
   "id": "com.dashfile.hello",
-  "name": "Hello 示例插件",
+  "name": "DashFile - Hello 示例",
   "version": "1.0.0",
   "versionCode": 1000000,
   "author": "your_name",

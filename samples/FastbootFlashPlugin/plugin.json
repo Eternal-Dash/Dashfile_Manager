@@ -1,5 +1,5 @@
-﻿{
-  "id": "com.dashfile.fastbootflash", "name": "Fastboot刷写", "version": "1.0.2",
+{
+  "id": "com.dashfile.fastbootflash", "name": "DashFile - 分区刷写", "version": "1.0.2",
   "author": "EternalDash", "description": "分区镜像刷写、Fastboot/ADB Root 回读、固件包预览与批量备份。",
   "tagline": "先预览，再刷写；备份有清单，操作有记录", "license": "GPL-3.0-or-later",
   "tags": ["Fastboot / Fastbootd", "镜像回读", "批量备份"], "icon": "▣",
