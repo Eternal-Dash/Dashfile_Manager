@@ -111,7 +111,8 @@
                 <StackPanel Spacing="8" IsEnabled="{Binding CanUsePartitions}">
                   <TextBlock Classes="flash-caption" Text="每个勾选分区都需选择镜像。先生成计划，核对后写入。"/>
                   <Button Classes="tool pri" Content="预览选中分区刷写" Command="{Binding FlashSelectedCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
-                  <Button Classes="tool" Content="回读选中分区" Command="{Binding BackupSelectedCommand}" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="回读选中分区" Command="{Binding BackupSelectedCommand}" IsEnabled="{Binding CanBackupDevice}" ToolTip.Tip="{Binding ReadbackHint}" HorizontalAlignment="Stretch"/>
+                  <TextBlock Classes="flash-caption" Text="{Binding ReadbackHint}"/>
                   <Button Classes="tool" Content="擦除选中分区…" Command="{Binding EraseSelectedCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
                 </StackPanel>
               </Expander>
@@ -141,7 +142,7 @@
                   <TextBox Text="{Binding OutputFolder}" Watermark="输出目录"/>
                   <Button Classes="tool" Content="选择输出目录" Command="{Binding PickOutputCommand}" HorizontalAlignment="Stretch"/>
                   <CheckBox Content="同时生成 ZIP（需要双份空间）" IsChecked="{Binding ZipBackup}"/>
-                  <Button Classes="tool" Content="回读全部已枚举分区" Command="{Binding BackupAllCommand}" IsEnabled="{Binding CanUsePartitions}" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="回读全部已枚举分区" Command="{Binding BackupAllCommand}" IsEnabled="{Binding CanBackupDevice}" ToolTip.Tip="{Binding ReadbackHint}" HorizontalAlignment="Stretch"/>
                   <TextBlock Classes="flash-caption" Text="Fastboot 回读依赖设备支持 fetch；ADB 回读需 Root。已枚举分区备份不等于厂商完整 ROM。"/>
                 </StackPanel>
               </Expander>

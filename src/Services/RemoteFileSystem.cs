@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -8,20 +8,25 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DashFile.Models;
+using DashFile.PluginApi;
 
 namespace DashFile.Services;
 
 public sealed class RemoteFileSystem
 {
     private readonly AdbRunner _adb;
+    private readonly FileTransferRegistry? _transfers;
     public string Serial { get; }
     public bool UseRoot { get; set; }
 
     public event Action<string>? Log;
 
-    public RemoteFileSystem(AdbRunner adb, string serial, bool useRoot)
+    public RemoteFileSystem(AdbRunner adb, string serial, bool useRoot) : this(adb, serial, useRoot, null) { }
+
+    public RemoteFileSystem(AdbRunner adb, string serial, bool useRoot, FileTransferRegistry? transfers)
     {
         _adb = adb;
+        _transfers = transfers;
         Serial = serial;
         UseRoot = useRoot;
     }
@@ -261,23 +266,44 @@ public sealed class RemoteFileSystem
 
     public async Task UploadAsync(string localFile, string remoteDir, CancellationToken ct = default)
     {
+        if (Directory.Exists(localFile))
+        {
+            if ((File.GetAttributes(localFile) & FileAttributes.ReparsePoint) != 0) throw new IOException("不递归上传目录链接。");
+            var dirName = new DirectoryInfo(localFile).Name;
+            var destDir = Sh.Join(remoteDir, dirName);
+            EnsureOk(await ShellAsync("mkdir -p -- " + Sh.Q(destDir), ct: ct).ConfigureAwait(false));
+            foreach (var child in Directory.EnumerateFileSystemEntries(localFile)) await UploadAsync(child, destDir, ct).ConfigureAwait(false);
+            return;
+        }
+        if (!File.Exists(localFile)) throw new FileNotFoundException("本地文件不存在", localFile);
+        if ((File.GetAttributes(localFile) & FileAttributes.ReparsePoint) != 0) throw new IOException("请上传实际文件，而不是文件链接。");
         var name = Path.GetFileName(localFile);
+        var target=Sh.Join(remoteDir,name);
+        // KernelSU's policy directory forbids creating/renaming siblings. Send file data
+        // through the preferred provider into staging, then retain the existing in-place copy.
+        var inPlace=target==DevicePaths.AdbData+"/ksu" || target.StartsWith(DevicePaths.AdbData+"/ksu/",StringComparison.Ordinal);
         var tmp = DevicePaths.TempFile("up");
-        L("[push] " + localFile + " -> " + tmp);
-
-        var r1 = await _adb.RunAsync(new[] { "-s", Serial, "push", localFile, tmp }, _adb.TransferTimeout, ct).ConfigureAwait(false);
-        if (!r1.Ok) throw new IOException(r1.All);
-
-        var target = Sh.Join(remoteDir, name);
-        // 不能用 "cp && chmod ; restorecon ; rm" 这种混链：尾部 rm 的退出码会把 cp 的失败盖掉，
-        //   权限不足/磁盘满也会显示"上传成功"。改成整条 && 链，只有全成功才 echo DF_OK。
-        var cmd = "cp -f " + Sh.Q(tmp) + " " + Sh.Q(target) +
-                  " && chmod 644 " + Sh.Q(target) +
-                  " && { restorecon " + Sh.Q(target) + " >/dev/null 2>&1; rm -f " + Sh.Q(tmp) + "; echo DF_OK; }";
-        var r2 = await ShellAsync(cmd, ct: ct).ConfigureAwait(false);
-        EnsureOk(r2);
-        if (!r2.StdOut.Contains("DF_OK", StringComparison.Ordinal))
-            throw new IOException(string.IsNullOrWhiteSpace(r2.All) ? "上传失败：目标不可写" : r2.All);
+        var usesStaging=inPlace;
+        try
+        {
+            var handled=_transfers!=null && await _transfers.TryTransferAsync(new PluginTransferRequest(Serial,UseRoot,_adb.AdbPath,PluginTransferDirection.Upload,inPlace?tmp:target,localFile),ct).ConfigureAwait(false);
+            if(handled && !inPlace)
+            {
+                var restore=await ShellAsync("restorecon "+Sh.Q(target)+" >/dev/null 2>&1",ct:ct).ConfigureAwait(false);
+                if(!restore.Ok)L("上传已完成；设备未执行 restorecon（可用性由设备决定）。");
+                return;
+            }
+            if(!handled)
+            {
+                usesStaging=true;
+                L("[push] "+localFile+" -> "+tmp);
+                EnsureOk(await _adb.RunAsync(new[]{"-s",Serial,"push",localFile,tmp},_adb.TransferTimeout,ct).ConfigureAwait(false));
+            }
+            var cmd="cp -f "+Sh.Q(tmp)+" "+Sh.Q(target)+" && chmod 644 "+Sh.Q(target)+" && { restorecon "+Sh.Q(target)+" >/dev/null 2>&1; echo DF_OK; }";
+            var result=await ShellAsync(cmd,ct:ct).ConfigureAwait(false);EnsureOk(result);
+            if(!result.StdOut.Contains("DF_OK",StringComparison.Ordinal))throw new IOException("上传失败：目标不可写");
+        }
+        finally {if(usesStaging)try{await ShellAsync("rm -f "+Sh.Q(tmp),ct:CancellationToken.None).ConfigureAwait(false);}catch{}}
     }
 
     public async Task UploadBytesAsync(byte[] data, string remotePath, CancellationToken ct = default)
@@ -304,30 +330,25 @@ public sealed class RemoteFileSystem
 
     public async Task DownloadAsync(string remotePath, string localPath, CancellationToken ct = default)
     {
-        // 关键：不能用 exec-out + su -c + 引号（引号会被吃掉导致 cat 失败）
-        // 改用 su 0 cat -- <path>，参数分开传，二进制安全
+        var fullPath = Path.GetFullPath(localPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        if (_transfers != null && await _transfers.TryTransferAsync(new PluginTransferRequest(Serial, UseRoot, _adb.AdbPath, PluginTransferDirection.Download, remotePath, fullPath), ct).ConfigureAwait(false))
+        {
+            if (!File.Exists(fullPath)) throw new IOException("传输插件未生成目标文件。");
+            return;
+        }
         var args = new List<string> { "-s", Serial, "exec-out" };
-        if (UseRoot)
+        if (UseRoot) { args.Add("su"); args.Add("0"); }
+        args.Add("cat"); args.Add("--"); args.Add(remotePath);
+        var partial = fullPath + ".dashfile-" + Guid.NewGuid().ToString("N") + ".partial";
+        try
         {
-            args.Add("su");
-            args.Add("0");
+            var result = await _adb.ExecOutToFileAsync(args, partial, ct).ConfigureAwait(false);
+            // Even a nonempty stdout can be an incomplete read. Never replace the destination on failure.
+            if (!result.Ok) throw new IOException("下载失败（exit " + result.ExitCode + "）：" + result.StdErr.Trim());
+            File.Move(partial, fullPath, true);
         }
-        args.Add("cat");
-        args.Add("--");
-        args.Add(remotePath);
-        var bytes = await _adb.ExecOutAsync(args, ct).ConfigureAwait(false);
-
-        // 以前不管成功与否都把拿到的字节写盘：cat 失败（权限/文件不存在）也留下一个 0 字节文件，
-        //   UI 显示"下载成功"。现在 0 字节时必须确认 exit=0 且 stderr 干净，否则按失败抛出。
-        if (bytes.Length == 0)
-        {
-            var err = (_adb.LastExecError ?? "").Trim();
-            if (_adb.LastExecExitCode != 0 || err.Length > 0)
-                throw new IOException("下载失败（exit " + _adb.LastExecExitCode + "）：" +
-                                      (err.Length > 0 ? err : "远端返回空"));
-        }
-
-        await File.WriteAllBytesAsync(localPath, bytes, ct).ConfigureAwait(false);
+        finally { try { File.Delete(partial); } catch { } }
     }
 
     // ---------- 文本 ----------

@@ -7,7 +7,7 @@
 public static class PluginApiInfo
 {
     /// <summary>当前插件 API 能力版本。v2 新增主导航和任务生命周期保护；宿主继续接受 v1 插件。</summary>
-    public const int Version = 2;
+    public const int Version = 3;
 
     /// <summary>宿主产品名。</summary>
     public const string HostProduct = "DashFile";

@@ -8,8 +8,8 @@
     <AssemblyName>DashFile</AssemblyName>
     <RootNamespace>DashFile</RootNamespace>
     <!-- 与 AppInfo.Version 保持一致：界面显示用 AppInfo，文件属性用这里 -->
-    <Version>1.1.0</Version>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <FileVersion>1.2.0.0</FileVersion>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>

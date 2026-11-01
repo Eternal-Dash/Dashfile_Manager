@@ -12,7 +12,8 @@ public sealed record Partition(string Name, long Size, bool? Logical = null, str
     public string Kind => Logical == true ? "逻辑分区" : Logical == false ? "物理分区" : "类型未报告";
     public static string FormatBytes(long size) => size >= 1L << 30 ? $"{size / (double)(1L << 30):F2} GiB" : size >= 1L << 20 ? $"{size / (double)(1L << 20):F1} MiB" : $"{size:N0} B";
 }
-public sealed record DeviceDetails(DeviceTarget Target, string Product, string Slot, bool Userspace, bool? Unlocked, IReadOnlyList<Partition> Partitions);
+public enum FetchSupport { Unknown, Supported, Unsupported }
+public sealed record DeviceDetails(DeviceTarget Target, string Product, string Slot, bool Userspace, bool? Unlocked, IReadOnlyList<Partition> Partitions, FetchSupport Fetch = FetchSupport.Unknown);
 public sealed record ImageInfo(string Path, long Length, long ExpandedSize, string Sha256);
 public sealed record FlashStep(string Partition, ImageInfo Image, bool PackageUpdate = false);
 public sealed record FlashPlan(DeviceTarget Target, string Product, bool ManualUnlock, bool AllowCritical, IReadOnlyList<FlashStep> Steps, string Notes);
@@ -50,7 +51,7 @@ public sealed class FlashEngine
     public static bool Critical(string name)
     {
         var n = Regex.Replace(Name(name).ToLowerInvariant(), "_[ab]$", "");
-        return new[] { "userdata", "metadata", "persist", "frp", "modemst1", "modemst2", "fsg", "devinfo", "super", "gpt", "partition", "abl", "xbl", "xbl_config", "bootloader", "radio", "modem", "preloader", "lk", "tz", "hyp" }.Contains(n);
+        return new[] { "userdata", "metadata", "persist", "frp", "modemst1", "modemst2", "fsg", "devinfo", "super", "gpt", "partition", "abl", "xbl", "xbl_config", "bootloader", "radio", "modem", "preloader", "lk", "tz", "hyp", "keystore", "fsc", "ssd", "proinfo", "lenovolock", "secdata", "devcfg", "uefi", "aop", "aop_config", "pvmfw", "cpucp" }.Contains(n);
     }
     private Task<ToolResult> Call(DeviceTarget target, IEnumerable<string> args, CancellationToken ct, string? file = null, bool write = false)
     {
@@ -121,7 +122,10 @@ public sealed class FlashEngine
             if (userspace.Length == 0) userspace = await Var(target, "is-userspace", ct);
             var unlocked = Variable(all.Output, "unlocked");
             if (unlocked.Length == 0) unlocked = await Var(target, "unlocked", ct);
-            return new DeviceDetails(target, product, slot.TrimStart('_'), ParseYesNo(userspace) == true, ParseYesNo(unlocked), ParsePartitions(all.Output));
+            var maxFetch = Variable(all.Output, "max-fetch-size");
+            if (maxFetch.Length == 0) maxFetch = await Var(target, "max-fetch-size", ct);
+            var fetch = ParseSize(maxFetch) > 0 ? FetchSupport.Supported : FetchSupport.Unsupported;
+            return new DeviceDetails(target, product, slot.TrimStart('_'), ParseYesNo(userspace) == true, ParseYesNo(unlocked), ParsePartitions(all.Output), fetch);
         }
         var id = await Call(target, new[] { "exec-out", "su", "-c", "id -u" }, ct);
         Require(id, "Root 检测");
@@ -336,7 +340,7 @@ public sealed class FlashEngine
     }
     public static string SafeChild(string root, string relative)
     {
-        if (string.IsNullOrWhiteSpace(relative) || relative.Contains('\\') || relative.Contains(':') || relative.StartsWith('/') || relative.Split('/').Any(s => s is ".." or "."))
+        if (string.IsNullOrWhiteSpace(relative) || relative.Contains('\\') || relative.Contains(':') || relative.StartsWith('/') || relative.TrimEnd('/').Split('/').Any(s => string.IsNullOrEmpty(s) || s is ".." or "." || s.EndsWith('.') || s.EndsWith(' ') || Regex.IsMatch(s, @"(?i)^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)")))
             throw new InvalidDataException("包内路径不安全：" + relative);
         var path = Path.GetFullPath(Path.Combine(root, relative));
         var prefix = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -345,11 +349,11 @@ public sealed class FlashEngine
     }
     private static void ValidateManifest(BackupManifest manifest)
     {
-        if (manifest.Format != "DashFile.PartitionBackup/1" || !manifest.Complete || manifest.Entries.Count is 0 or > 1024 || manifest.Requested.Count != manifest.Entries.Count)
+        if (manifest.Format != "DashFile.PartitionBackup/1" || !manifest.Complete || manifest.Entries == null || manifest.Requested == null || manifest.Entries.Count is 0 or > 1024 || manifest.Requested.Count != manifest.Entries.Count)
             throw new InvalidDataException("备份清单不完整，不能用于整包恢复。");
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var e in manifest.Entries)
-            if (!names.Add(Name(e.Name)) || e.File != e.Name + ".img" || e.Size <= 0 || !Regex.IsMatch(e.Sha256, "^[A-Fa-f0-9]{64}$"))
+            if (e == null || string.IsNullOrWhiteSpace(e.Name) || string.IsNullOrEmpty(e.Sha256) || !names.Add(Name(e.Name)) || e.File != e.Name + ".img" || e.Size <= 0 || !Regex.IsMatch(e.Sha256, "^[A-Fa-f0-9]{64}$"))
                 throw new InvalidDataException("备份清单含重复分区或无效条目。");
         if (!names.SetEquals(manifest.Requested) || manifest.Requested.Distinct(StringComparer.Ordinal).Count() != manifest.Requested.Count)
             throw new InvalidDataException("备份条目与请求分区不一致。");
@@ -484,6 +488,8 @@ public sealed class FlashEngine
             using var operationLock = LockDeviceOperations();
             var current = await InspectAsync(details.Target, ct);
             if (current.Product != details.Product) throw new IOException("设备机型已变化。");
+            if (current.Target.Transport == Transport.Fastboot && current.Fetch != FetchSupport.Supported)
+                throw new InvalidOperationException("该设备未提供 max-fetch-size，当前 Bootloader 不支持 Fastboot fetch 回读。请自行进入已授权、具备 Root 的 Android / Recovery，再检测并选择 ADB 设备回读；不会自动重启或解锁设备。");
             var expected = partitions.Aggregate(0L, (sum, p) => checked(sum + p.Size));
             if (partitions.Any(p => p.Size <= 0)) throw new InvalidOperationException("有分区大小未知，请刷新/更换回读方式，不能把未知长度结果当作完整备份。");
             Directory.CreateDirectory(outputRoot);
@@ -499,7 +505,7 @@ public sealed class FlashEngine
                 Name(part.Name);
                 var fresh = current.Partitions.FirstOrDefault(p => p.Name == part.Name);
                 if (fresh == null || fresh.Size != part.Size || fresh.BlockPath != part.BlockPath) throw new IOException("分区表已变化，请刷新后重试：" + part.Name);
-                var temp = Path.Combine(folder, part.Name + ".img.partial");
+                var temp = SafeChild(folder, part.Name + ".img.partial");
                 Progress?.Invoke(i, partitions.Count, part.Name);
                 ToolResult result;
                 if (details.Target.Transport == Transport.Fastboot)
@@ -511,7 +517,10 @@ public sealed class FlashEngine
                 }
                 Require(result, "回读 " + part.Name);
                 if (!File.Exists(temp) || new FileInfo(temp).Length != part.Size) throw new IOException("回读长度不符：" + part.Name + "；保留 .partial 文件，未标为成功。");
-                var image = await InspectImageAsync(temp, ct);
+                // A raw partition may contain any header, including sparse magic. Do not interpret backup bytes as an image container.
+                using var raw = new FileStream(temp, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, true);
+                var image = new ImageInfo(temp, raw.Length, raw.Length, Convert.ToHexString(await SHA256.HashDataAsync(raw, ct)));
+                raw.Close();
                 var final = Path.Combine(folder, part.Name + ".img");
                 File.Move(temp, final);
                 manifest.Entries.Add(new BackupEntry(part.Name, part.Name + ".img", image.Length, image.Sha256, part.Logical));
@@ -546,8 +555,13 @@ public sealed class FlashEngine
         }
         finally { _operation.Release(); }
     }
-    private static Task WriteManifest(string folder, BackupManifest manifest, CancellationToken ct)
-        => File.WriteAllTextAsync(Path.Combine(folder, "manifest.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), ct);
+    private static async Task WriteManifest(string folder, BackupManifest manifest, CancellationToken ct)
+    {
+        var target = Path.Combine(folder, "manifest.json");
+        var temp = target + ".tmp";
+        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }), ct);
+        File.Move(temp, target, true);
+    }
 
     public static async Task<string> ExtractBackupAsync(string archive, string cacheRoot, CancellationToken ct)
     {
@@ -557,20 +571,43 @@ public sealed class FlashEngine
         var manifest = await JsonSerializer.DeserializeAsync<BackupManifest>(input, cancellationToken: ct) ?? throw new InvalidDataException("备份清单无效。");
         ValidateManifest(manifest);
         var folder = Path.Combine(cacheRoot, "backup-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(folder);
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var required = manifest.Entries.Select(e => e.File).Append("manifest.json").ToHashSet(StringComparer.Ordinal);
         var total = zip.Entries.Aggregate(0L, (sum, e) => checked(sum + e.Length));
         if (new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!).AvailableFreeSpace < total + 64 * 1024 * 1024) throw new IOException("缓存磁盘空间不足。");
-        foreach (var item in zip.Entries)
+        // Validate the complete archive before creating any output. ZIP declared lengths must
+        // agree with the backup manifest; streamed bytes are bounded independently below.
+        foreach(var item in zip.Entries)
         {
-            var file = SafeChild(folder, item.FullName);
+            _ = SafeChild(folder,item.FullName);
             if (!names.Add(item.FullName) || !required.Contains(item.FullName) || item.FullName.Contains('/')) throw new InvalidDataException("备份 ZIP 有重名/多余/嵌套文件。");
-            using var src = item.Open();
-            using var dest = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, true);
-            await src.CopyToAsync(dest, ct);
+            if(item.FullName!="manifest.json" && manifest.Entries.Single(e=>e.File==item.FullName).Size!=item.Length)throw new InvalidDataException("备份 ZIP 文件长度与清单不一致。");
         }
         if (names.Count != required.Count) throw new InvalidDataException("备份 ZIP 缺少文件。");
-        return folder;
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var buffer=new byte[1024*1024];
+            foreach(var item in zip.Entries)
+            {
+                using var src=item.Open();
+                using var dest=new FileStream(SafeChild(folder,item.FullName),FileMode.CreateNew,FileAccess.Write,FileShare.None,buffer.Length,true);
+                long copied=0;int read;
+                while((read=await src.ReadAsync(buffer,ct))!=0)
+                {
+                    copied=checked(copied+read);if(copied>item.Length)throw new InvalidDataException("备份 ZIP 解压长度超出声明。");
+                    await dest.WriteAsync(buffer.AsMemory(0,read),ct);
+                }
+                if(copied!=item.Length)throw new InvalidDataException("备份 ZIP 文件被截断。");
+            }
+            return folder;
+        }
+        catch
+        {
+            // This fresh GUID directory can contain only the validated files created above.
+            foreach(var name in names)try{File.Delete(SafeChild(folder,name));}catch{}
+            try{Directory.Delete(folder);}catch{}
+            throw;
+        }
     }
 }

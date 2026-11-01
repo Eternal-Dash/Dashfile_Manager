@@ -1,4 +1,4 @@
-namespace DashFile.Services;
+﻿namespace DashFile.Services;
 
 /// <summary>
 /// 应用级常量。版本号、署名、产品名只在这里改一次，
@@ -8,7 +8,7 @@ public static class AppInfo
 {
     public const string Name = "DashFile";
     public const string Product = "DashFile — 安卓文件管理器";
-    public const string Version = "1.1.0";
+    public const string Version = "1.2.0";
     public const string Signature = "酷安@恒定破折号";
     public const string Homepage = "";
 

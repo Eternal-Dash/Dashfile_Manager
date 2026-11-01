@@ -11,7 +11,7 @@ namespace DashFile.ViewModels;
 
 public partial class MainViewModel
 {
-    public bool HasActivePluginOperations => _plugins?.HasActiveOperations == true;
+    public bool HasActivePluginOperations => _plugins?.HasActiveOperations == true || FileTransfers.ActiveCount > 0;
 
     public ObservableCollection<PluginPageInfo> NavigationPages { get; } = new();
     [ObservableProperty] private Control? _navigationPageView;

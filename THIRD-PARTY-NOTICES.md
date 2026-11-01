@@ -4,6 +4,7 @@ DashFile 以 **GPL-3.0-or-later** 发布（见仓库根目录 `LICENSE`）。下
 
 | 组件 | 版本 | 许可 | 用途 / 说明 |
 |---|---|---|---|
+| [HybridFileXfer](https://github.com/weixiansen574/HybridFileXfer) | 14e75ab | GPL-3.0-or-later | 双轨快传插件参考/适配；原作者 weixiansen574；原许可与修改说明在 samples/HybridTransferPlugin/ThirdParty 和 UPSTREAM.md |
 | [.NET](https://github.com/dotnet/runtime) | 8.0 | MIT | 运行时（自包含发布） |
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | 11.3.22 | MIT | 桌面 UI 框架 |
 | [SkiaSharp](https://github.com/mono/SkiaSharp) | 2.88.9 | MIT | 位图/字体渲染（含 Skia 的 BSD-3 等第三方声明，见 `licenses/SkiaSharp-THIRD-PARTY-NOTICES.txt`） |

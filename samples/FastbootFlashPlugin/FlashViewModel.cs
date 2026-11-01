@@ -74,6 +74,8 @@ public partial class FlashViewModel : ObservableObject
     public bool HasDetails => _details != null;
     public bool CanUseDevice => CanInteract && SelectedDevice != null;
     public bool CanUsePartitions => CanInteract && HasDetails;
+    public bool CanBackupDevice => CanUsePartitions && (_details?.Target.Transport == Transport.AdbRoot || _details?.Fetch == FetchSupport.Supported);
+    public string ReadbackHint => !HasDetails ? "读取设备信息后确认回读能力。" : _details?.Target.Transport == Transport.AdbRoot ? "ADB Root 回读：需要 Root 授权，建议在未挂载分区的 Recovery 中备份。" : _details?.Fetch == FetchSupport.Supported ? "设备已报告 Fastboot fetch 回读能力。" : "该 Bootloader 不支持 fetch 回读；请自行进入 Root Android / Recovery 后选择 ADB 设备。";
     public bool CanWriteDevice => CanUsePartitions && _details?.Target.Transport == Transport.Fastboot && _details.Unlocked != false;
     [ObservableProperty] private bool _isBasicsOpen = true;
     [ObservableProperty] private bool _isPackageOpen = false;
@@ -115,7 +117,7 @@ public partial class FlashViewModel : ObservableObject
     partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(CanInteract)); OnPropertyChanged(nameof(HasPlan));
-        OnPropertyChanged(nameof(DeviceSelectionEnabled)); OnPropertyChanged(nameof(CanUseDevice)); OnPropertyChanged(nameof(CanUsePartitions)); OnPropertyChanged(nameof(CanWriteDevice));
+        OnPropertyChanged(nameof(DeviceSelectionEnabled)); OnPropertyChanged(nameof(CanUseDevice)); OnPropertyChanged(nameof(CanUsePartitions)); OnPropertyChanged(nameof(CanWriteDevice)); OnPropertyChanged(nameof(CanBackupDevice)); OnPropertyChanged(nameof(ReadbackHint));
     }
     partial void OnDeviceModeIndexChanged(int value)
     {
@@ -125,7 +127,7 @@ public partial class FlashViewModel : ObservableObject
     private void NotifyCatalog()
     {
         OnPropertyChanged(nameof(CatalogSummary)); OnPropertyChanged(nameof(SelectedCount)); OnPropertyChanged(nameof(CatalogEmpty)); OnPropertyChanged(nameof(ListEmpty)); OnPropertyChanged(nameof(EmptyTitle)); OnPropertyChanged(nameof(EmptyDescription));
-        OnPropertyChanged(nameof(HasDetails)); OnPropertyChanged(nameof(CanUseDevice)); OnPropertyChanged(nameof(CanUsePartitions)); OnPropertyChanged(nameof(CanWriteDevice));
+        OnPropertyChanged(nameof(HasDetails)); OnPropertyChanged(nameof(CanUseDevice)); OnPropertyChanged(nameof(CanUsePartitions)); OnPropertyChanged(nameof(CanWriteDevice)); OnPropertyChanged(nameof(CanBackupDevice)); OnPropertyChanged(nameof(ReadbackHint));
     }
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {

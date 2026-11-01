@@ -216,7 +216,8 @@ public partial class MainWindow : Window
         //   只挂在 FilesList 上会漏事件，表现为“点完选中，高亮停在原地”。
         AddHandler(PointerMovedEvent, OnWindowPointerMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerExitedEvent, (_, _) => ClearFileHover(), RoutingStrategies.Tunnel);
-        AddHandler(PointerCaptureLostEvent, (_, _) => ClearFileHover(), RoutingStrategies.Tunnel);
+        AddHandler(PointerCaptureLostEvent, (_, _) => { ClearFileHover(); if (_rowDrag) CancelRowDrag(); }, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) => { if (_rowDrag) CancelRowDrag(); };
 
         // 应用行 / 模块卡片：右键追加插件动作
         var apps = this.FindControl<ListBox>("AppsList");
@@ -672,6 +673,7 @@ public partial class MainWindow : Window
                 return;
 
             case Key.Escape:
+                if (_rowDrag) { CancelRowDrag(); e.Handled = true; return; }
                 if (Vm.IsMultiSelect) ExitMultiSelect();
                 else if (Vm.IsArchiveMode) { /* 留给用户点按钮 */ }
                 else Files.SelectedItems?.Clear();
@@ -1526,6 +1528,7 @@ public partial class MainWindow : Window
         if (ov != null && ov.IsVisible) ov.IsVisible = false;
     }
 
+    private TranslateTransform? _dragGhostTransform;
     private void ShowDragGhost(string text, Point windowPos)
     {
         var ghost = this.FindControl<Border>("DragGhost");
@@ -1539,8 +1542,10 @@ public partial class MainWindow : Window
         // 不让提示跑到窗口外面
         var x = Math.Min(Math.Max(4, windowPos.X + 16), Math.Max(4, Bounds.Width - 320));
         var y = Math.Min(Math.Max(4, windowPos.Y + 16), Math.Max(4, Bounds.Height - 40));
-        Canvas.SetLeft(ghost, x);
-        Canvas.SetTop(ghost, y);
+        // Move the overlay in composition, avoiding a Canvas arrange on every pointer move.
+        if(_dragGhostTransform==null){_dragGhostTransform=new TranslateTransform();ghost.RenderTransform=_dragGhostTransform;}
+        _dragGhostTransform.X=x;
+        _dragGhostTransform.Y=y;
     }
 
     private void HideDragGhost()
@@ -2445,6 +2450,20 @@ public partial class MainWindow : Window
     private bool _rowDrag;
     private List<PosixEntry> _rowDragItems = new();
     private PosixEntry? _dragTarget;
+    private string? _dragSerial;
+    private IPointer? _dragPointer;
+    private DispatcherTimer? _dragScrollTimer;
+    private ScrollViewer? _dragScroll;
+    private Point _dragPosition;
+    private void CancelRowDrag()
+    {
+        _rowDrag=false; _dragArmed=false; CancelHold();
+        _dragScrollTimer?.Stop(); _dragScrollTimer=null; _dragScroll=null;
+        _dragPointer?.Capture(null); _dragPointer=null;
+        _rowDragItems.Clear(); _dragTarget=null; SetHighlight(null);
+        HideDragGhost(); ResetDragCursor();
+        if(Vm!=null){Vm.IsDragging=false;Vm.DragHint="";Vm.StatusText="已取消拖动";}
+    }
 
     /// <summary>
     /// 拖拽光标：跟资源管理器一致的手感。
@@ -2496,6 +2515,19 @@ public partial class MainWindow : Window
         if (_rowDragItems.Count == 0) return;
 
         _rowDrag = true;
+        _dragSerial = Vm.SelectedDevice?.Serial;
+        _dragPointer=pointer;
+        _dragScroll=Files.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        _dragScrollTimer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(33) };
+        _dragScrollTimer.Tick+=(_,_)=>
+        {
+            if(!_rowDrag||_dragScroll==null)return;
+            var h=Files.Bounds.Height;
+            if(_dragPosition.X<0||_dragPosition.X>Files.Bounds.Width||_dragPosition.Y<0||_dragPosition.Y>h)return;
+            var speed=_dragPosition.Y<44 ? -Math.Min(22,(44-_dragPosition.Y)*.5) : _dragPosition.Y>h-44 ? Math.Min(22,(_dragPosition.Y-h+44)*.5) : 0;
+            if(speed!=0){_dragScroll.Offset=new Vector(_dragScroll.Offset.X,Math.Clamp(_dragScroll.Offset.Y+speed,0,Math.Max(0,_dragScroll.Extent.Height-_dragScroll.Viewport.Height)));UpdateRowDrag(_dragPosition);}
+        };
+        _dragScrollTimer.Start();
         _dragTarget = null;
         _pendingToggle = null;
         pointer.Capture(Files);
@@ -2509,8 +2541,9 @@ public partial class MainWindow : Window
     private void UpdateRowDrag(Point pos)
     {
         if (Vm == null) return;
+        _dragPosition=pos;
         var hit = HitTestEntry(pos);
-        var target = hit is { IsDir: true } ? hit : null;
+        var target = hit is { IsDir: true } && !_rowDragItems.Any(i=>hit.FullPath==i.FullPath||hit.FullPath.StartsWith(i.FullPath.TrimEnd('/')+"/",StringComparison.Ordinal)) ? hit : null;
         if (!ReferenceEquals(target, _dragTarget))
         {
             _dragTarget = target;
@@ -2538,6 +2571,7 @@ public partial class MainWindow : Window
     private async Task FinishRowDragAsync(PointerEventArgs e)
     {
         if (Vm == null) return;
+        _dragScrollTimer?.Stop(); _dragScrollTimer=null; _dragScroll=null; _dragPointer=null;
         HideDragGhost();
         ResetDragCursor();
         SetTreeHighlight(null);
@@ -2553,6 +2587,7 @@ public partial class MainWindow : Window
 
         try
         {
+            if(_dragSerial!=Vm.SelectedDevice?.Serial) { Vm.StatusText="设备已切换，已取消拖动";return; }
             if (inside)
             {
                 if (target != null)
@@ -2567,7 +2602,8 @@ public partial class MainWindow : Window
             }
             else
             {
-                var dir = ShellFolderAtCursor() ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                var dir = ShellFolderAtCursor();
+                if(dir==null){Vm.StatusText="已取消导出：请拖到桌面空白处或资源管理器文件夹";return;}
                 Vm.DragHint = $"正在导出到 {dir} …";
                 await Vm.ExportToAsync(items, dir);
             }
@@ -2590,6 +2626,8 @@ public partial class MainWindow : Window
     private static extern IntPtr GetAncestor(IntPtr h, uint flags);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT p);
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr handle, [System.Runtime.InteropServices.Out] char[] name, int max);
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
@@ -2602,6 +2640,8 @@ public partial class MainWindow : Window
             if (!GetCursorPos(out var pt)) return null;
             var root = GetAncestor(WindowFromPoint(pt), 2);   // GA_ROOT
             if (root == IntPtr.Zero) return null;
+            var cls=new char[256];var clsLength=GetClassName(root,cls,cls.Length);
+            if(new string(cls,0,clsLength) is "Progman" or "WorkerW")return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
 
             var t = Type.GetTypeFromProgID("Shell.Application");
             if (t == null) return null;

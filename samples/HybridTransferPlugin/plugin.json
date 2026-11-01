@@ -1,0 +1,8 @@
+{
+  "id": "com.dashfile.hybridtransfer", "name": "双轨快传", "version": "1.0.0",
+  "author": "EternalDash · 原项目 weixiansen574", "description": "优先接管文件上传与下载，叠加 USB 和局域网通道，SHA-256 校验后提交。",
+  "tagline": "USB + Wi-Fi，多通道合力传输", "license": "GPL-3.0-or-later",
+  "tags": ["USB + Wi-Fi", "SHA-256", "原作者 weixiansen574"], "icon": "⇄",
+  "assembly": "HybridTransferPlugin.dll", "entryType": "HybridTransferPlugin.HybridPlugin",
+  "apiVersion": 3, "minHostVersion": "1.2.0"
+}

@@ -22,6 +22,7 @@ if (Test-Path (Join-Path $sdk "dotnet.exe")) {
 # 只复制入口 dll；Avalonia / DashFile.PluginApi 由宿主提供。
 # 按下列清单生成插件包；宿主依赖不重复打包。
 $plugins = @(
+    @{ Name = "HybridTransferPlugin"; Id = "com.dashfile.hybridtransfer"; Dll = "HybridTransferPlugin.dll" },
     @{ Name = "FastbootFlashPlugin"; Id = "com.dashfile.fastbootflash"; Dll = "FastbootFlashPlugin.dll" },
     @{ Name = "AvbStudioPlugin"; Id = "com.dashfile.avbstudio"; Dll = "AvbStudioPlugin.dll" },
     @{ Name = "ReverseToolboxPlugin"; Id = "com.dashfile.reversetool"; Dll = "ReverseToolboxPlugin.dll" },
@@ -46,6 +47,11 @@ foreach ($plugin in $plugins) {
     Copy-Item $src $dst -Force
     Copy-Item (Join-Path $projectDir "plugin.json") $dst -Force
     if (Test-Path (Join-Path $projectDir "README.md")) { Copy-Item (Join-Path $projectDir "README.md") $dst -Force }
+    if ($plugin.Name -eq "HybridTransferPlugin") {
+        Copy-Item (Join-Path $projectDir "UPSTREAM.md") $dst -Force
+        Copy-Item (Join-Path $projectDir "ThirdParty") $dst -Recurse -Force
+        Copy-Item (Join-Path $projectDir "Agent") $dst -Recurse -Force
+    }
     # 许可证随插件一起分发（GPLv3 要求）
     Copy-Item (Join-Path $root "LICENSE") $dst -Force
     Copy-Item (Join-Path $root "COPYRIGHT") $dst -Force

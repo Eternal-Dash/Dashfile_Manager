@@ -1,6 +1,6 @@
 ﻿# Fastboot刷写插件
 
-适用：DashFile 1.1.0 及以上（API v2）。插件 ID `com.dashfile.fastbootflash`，版本 1.0.1，许可证 GPL-3.0-or-later。
+适用：DashFile 1.1.0 及以上（API v2）。插件 ID `com.dashfile.fastbootflash`，版本 1.0.2，许可证 GPL-3.0-or-later。
 
 安装后顶部显示“分区刷写”，位置在“设置”前。插件管理页仍可查看、启停和卸载。原有应用页面排版保持不变，插件使用宿主浅色/深色资源；左侧分区表、右侧可折叠操作区。
 
@@ -74,3 +74,6 @@ powershell -File build/build-plugins.ps1
 - [AOSP Fastboot / fastboot-info 文档](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md)
 - [AOSP Fastboot 实现](https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/fastboot.cpp)
 - [AOSP ADB exec-out 的参数处理](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/client/commandline.cpp)
+
+
+1.0.2 回读修正：读取设备信息时检查 max-fetch-size，未提供时禁用 Fastboot 回读并解释原因；仍可手动切换 Root Android/Recovery。备份 ZIP 先核对清单/文件长度后解压，失败清理 staging。原始块备份不把分区内容误作 sparse 镜像解析。

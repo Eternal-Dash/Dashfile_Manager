@@ -5,13 +5,15 @@
 
 | 文件 | 插件 | 说明 |
 |---|---|---|
+| `com.dashfile.hybridtransfer.dfp` | 双轨快传 | DashFile ≥1.2.0 / API3；默认接管上传下载，USB + Wi-Fi，原项目 HybridFileXfer / 原作者 weixiansen574 |
+| `com.dashfile.fastbootflash.dfp` | Fastboot刷写 | DashFile ≥1.1.0 / API2；分区计划、刷写、能力检查后回读与备份 |
 | `com.dashfile.avbstudio.dfp` | AVB 工作台 | AVB 镜像解析与重签、哈希树、VBMeta 构建、整树链式 / 非链式重建、A/B 批处理、目录扫描 |
 
 > 「逆向工具箱」暂停对外提供，作者重做后再放回；源码在 `../samples/ReverseToolboxPlugin/`。
 
 ## 装之前确认
 
-- 宿主版本 ≥ 插件 `plugin.json` 里的 `minHostVersion`（当前为 1.0.0）；
+- 宿主版本 ≥ 插件 `plugin.json` 里的 `minHostVersion`（各插件要求不同）；
 - 插件与宿主共用同一份 `DashFile.PluginApi`，不要自己再打包一份；
 - 插件运行在可回收 AssemblyLoadContext 里，禁用或卸载即回收。
 

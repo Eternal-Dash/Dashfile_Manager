@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -136,6 +136,32 @@ public sealed class AdbRunner
         finally
         {
             p?.Dispose();
+        }
+    }
+
+    /// <summary>Streams binary stdout; process result belongs to this call, never shared LastExec state.</summary>
+    public async Task<ProcResult> ExecOutToFileAsync(IEnumerable<string> args, string file, CancellationToken ct = default)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (TransferTimeout > TimeSpan.Zero) linked.CancelAfter(TransferTimeout);
+        using var process = new Process { StartInfo = Base(args, false) };
+        if (!process.Start()) throw new IOException("无法启动 adb");
+        using var registration = linked.Token.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
+        Task<string>? errors = null;
+        try
+        {
+            using var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, true);
+            errors = process.StandardError.ReadToEndAsync(linked.Token);
+            await Task.WhenAll(process.StandardOutput.BaseStream.CopyToAsync(output, linked.Token), process.WaitForExitAsync(linked.Token)).ConfigureAwait(false);
+            await output.FlushAsync(linked.Token).ConfigureAwait(false);
+            return new ProcResult(process.ExitCode, "", await errors.ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new TimeoutException("ADB 文件传输超时。"); }
+        finally
+        {
+            try { if (!process.HasExited) process.Kill(true); } catch { }
+            try { await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false); } catch { }
+            if(errors!=null)try{await errors.ConfigureAwait(false);}catch{}
         }
     }
 

@@ -9,9 +9,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- API 能力号用于宿主功能门槛；保持 AssemblyVersion 以兼容现有插件二进制 -->
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
+    <FileVersion>1.2.0.0</FileVersion>
     <Authors>恒定破折号 (EternalDash)</Authors>
     <Product>DashFile</Product>
     <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>

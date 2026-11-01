@@ -8,7 +8,7 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
     private FlashViewModel? _session;
     public bool IsOperationActive => _session?.IsBusy == true;
     public string OperationDescription => "分区刷写 / 镜像回读";
-    public override PluginMetadata Metadata => new() { Id = "com.dashfile.fastbootflash", Name = "Fastboot刷写", Version = "1.0.1", Author = "EternalDash", Description = "分区刷写与可验证备份" };
+    public override PluginMetadata Metadata => new() { Id = "com.dashfile.fastbootflash", Name = "Fastboot刷写", Version = "1.0.2", Author = "EternalDash", Description = "分区刷写与可验证备份" };
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
         _session = new FlashViewModel(Host, new FlashEngine(new NativeToolRunner()));

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,13 +23,21 @@ namespace DashFile.ViewModels;
 /// 把一个插件和 DashFile 的实际能力桥接起来。
 /// 插件只看到 DashFile.PluginApi 里的接口，这里负责把调用转成 VM / Services 的操作。
 /// </summary>
-internal sealed class PluginHostBridge : IPluginHost, IPluginEventSink, IDisposable
+internal sealed class PluginHostBridge : IPluginHost, IPluginFileTransferHost, IPluginEventSink, IDisposable
 {
     private readonly MainViewModel _vm;
     private readonly PluginManager _manager;
     private readonly PluginManifest _manifest;
 
     private readonly PluginEvents _events = new();
+    private readonly List<IDisposable> _transferRegistrations = new();
+    public string AdbExecutablePath => _vm.AdbPath;
+    public IDisposable RegisterFileTransferProvider(IPluginFileTransferProvider provider, int priority = 100)
+    {
+        var registration = _vm.FileTransfers.Register(_manifest.Id, provider, priority);
+        _transferRegistrations.Add(registration);
+        return registration;
+    }
 
     public PluginHostBridge(MainViewModel vm, PluginManager manager, PluginManifest manifest,
         IDashFilePlugin instance)
@@ -91,6 +99,8 @@ internal sealed class PluginHostBridge : IPluginHost, IPluginEventSink, IDisposa
     /// <summary>插件被禁用 / 重载时，清掉它做的所有 UI 资源覆盖。</summary>
     public void Dispose()
     {
+        foreach (var registration in _transferRegistrations) registration.Dispose();
+        _transferRegistrations.Clear();
         if (Ui is PluginUiApi ui) ui.ClearResourceOverrides();
     }
 

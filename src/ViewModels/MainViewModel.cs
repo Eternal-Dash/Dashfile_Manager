@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Collections.ObjectModel;
@@ -20,6 +20,8 @@ namespace DashFile.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    public FileTransferRegistry FileTransfers { get; } = new();
+    private long _lastTransferProgress;
     private readonly AdbRunner _runner;
     private readonly AdbClient _client;
     private RemoteFileSystem? _fs;
@@ -35,6 +37,14 @@ public partial class MainViewModel : ObservableObject
         _client = new AdbClient(_runner);
         _power = new PowerService(_runner);
         AdbPath = adb;
+        FileTransfers.Status += message => Avalonia.Threading.Dispatcher.UIThread.Post(() => { StatusText = message; LogLine(message); });
+        FileTransfers.Progress += progress =>
+        {
+            var now = Environment.TickCount64;
+            if (progress.CompletedBytes < progress.TotalBytes && now - Interlocked.Read(ref _lastTransferProgress) < 100) return;
+            Interlocked.Exchange(ref _lastTransferProgress, now);
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusText = $"双轨快传 · {progress.Channels} · {progress.Phase} · {progress.FileName} · {progress.CompletedBytes / 1048576d:F1}/{progress.TotalBytes / 1048576d:F1} MiB");
+        };
 
         // 说明：设备检测统一走 StartWatchdog() 的 1.2s 轮询 + WM_DEVICECHANGE 加速。
         // （原来的 AdbDeviceTracker 从未被启动/订阅，已作为死代码删除）
@@ -1256,7 +1266,7 @@ public partial class MainViewModel : ObservableObject
             IsRoot = await probe.DetectRootAsync();
             Perf($"startup detect-root {swConn.ElapsedMilliseconds}ms root={IsRoot}");
 
-            _fs = new RemoteFileSystem(_runner, dev.Serial, IsRoot) { };
+            _fs = new RemoteFileSystem(_runner, dev.Serial, IsRoot, FileTransfers) { };
             _fs.Log += LogLine;
 
             // 换设备/重连时必须重建：这些服务内部抓着旧的 _fs（旧序列号）
@@ -2375,9 +2385,11 @@ public partial class MainViewModel : ObservableObject
         if (items.Count == 0 || string.IsNullOrWhiteSpace(localDir)) return;
         try { Directory.CreateDirectory(localDir); } catch { }
 
+        var exportFs=_fs;
         var locals = new List<string>();
         for (int i = 0; i < items.Count; i++)
         {
+            if(!ReferenceEquals(exportFs,_fs)){LogLine("EXPORT 设备已切换，停止读取");break;}
             var it = items[i];
             DragHint = $"正在从设备读取 {i + 1}/{items.Count}：{it.DisplayName}";
             try
@@ -2385,6 +2397,7 @@ public partial class MainViewModel : ObservableObject
                 var local = await PrepareDragFileAsync(it);
                 if (!string.IsNullOrEmpty(local)) locals.Add(local!);
             }
+            catch(OperationCanceledException){LogLine("EXPORT 已取消后续导出");break;}
             catch (Exception ex) { LogLine("EXPORT " + ex.Message); }
         }
         if (locals.Count == 0) { StatusText = "导出失败：没有取到文件"; return; }
@@ -2395,7 +2408,9 @@ public partial class MainViewModel : ObservableObject
                      as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
                     ?.MainWindow?.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
 
-        var ok = Services.NativeShell.CopyWithProgress(owner, locals.ToArray(), localDir, "DashFile 正在导出");
+        bool ok;
+        try { ok = Services.NativeShell.CopyWithProgress(owner, locals.ToArray(), localDir, "DashFile 正在导出"); }
+        finally { foreach(var file in locals)try{File.Delete(file);Directory.Delete(Path.GetDirectoryName(file)!);}catch{} }
         StatusText = ok ? $"已导出 {locals.Count} 项到 {localDir}" : "导出被取消或失败";
         Toast(ok ? $"已导出 {locals.Count} 项 → {localDir}" : "导出被取消或失败");
         Perf($"export {locals.Count} items -> {localDir} ok={ok}");
@@ -2419,6 +2434,7 @@ public partial class MainViewModel : ObservableObject
         InvalidatePrefetch();
         if (_fs == null || srcPaths.Count == 0 || string.IsNullOrWhiteSpace(targetDir)) return 0;
 
+        var fs=_fs;
         var target = targetDir.TrimEnd('/');
         if (target.Length == 0) target = "/";
 
@@ -2438,7 +2454,7 @@ public partial class MainViewModel : ObservableObject
 
             var dst = (target == "/" ? "" : target) + "/" + name;
             // 用"落地后确实存在"作为成功标志：只靠 stderr 关键字会被 locale / 静默失败骗过
-            var r = await _fs.RunCommandAsync(
+            var r = await fs.RunCommandAsync(
                 $"mv -f -- {Sh.Q(src)} {Sh.Q(dst)} && [ -e {Sh.Q(dst)} ] && echo DF_OK", true);
             if (!r.Contains("DF_OK", StringComparison.Ordinal))
             {
@@ -2455,7 +2471,7 @@ public partial class MainViewModel : ObservableObject
             ? $"已移动 {moved} 项（{skipped} 项已在目标目录或无效，跳过）" + failText
             : $"已移动 {moved} 项到 {target}" + failText;
         if (failed > 0) AppLog.Add("移动失败 " + failed + " 项 → " + target);
-        await NavigateAsync(CurrentPath);
+        if(ReferenceEquals(fs,_fs)) await NavigateAsync(CurrentPath);
         return moved;
     }
 
@@ -2985,32 +3001,12 @@ public partial class MainViewModel : ObservableObject
 
     // ---------------- 文件操作 ----------------
 
-    public async Task UploadAsync(IEnumerable<string> localFiles)
-    {
-        InvalidatePrefetch();
-        if (_fs == null) return;
-        var files = localFiles.ToList();
-        if (files.Count == 0) return;
-        foreach (var f in files)
-        {
-            try
-            {
-                StatusText = "正在上传：" + System.IO.Path.GetFileName(f);
-                await _fs.UploadAsync(f, CurrentPath);
-            }
-            catch (Exception ex)
-            {
-                LogLine("UPLOAD " + f + " => " + ex.Message);
-                StatusText = "上传失败：" + ex.Message;
-            }
-        }
-        await NavigateAsync(CurrentPath);
-        StatusText = $"已上传 {files.Count} 个文件";
-    }
+    public Task UploadAsync(IEnumerable<string> localFiles) => UploadToAsync(localFiles, CurrentPath);
 
     /// <summary>批量下载多个文件/文件夹到同一个本地目录</summary>
     public async Task BatchDownloadAsync(IEnumerable<PosixEntry> items, string localDir)
     {
+        var fs=_fs;if(fs==null)return;
         var list = items.ToList();
         if (list.Count == 0) return;
 
@@ -3018,6 +3014,7 @@ public partial class MainViewModel : ObservableObject
         var ok = 0;
         for (int i = 0; i < list.Count; i++)
         {
+            if(!ReferenceEquals(fs,_fs)){LogLine("BATCH DL 设备已切换，停止后续下载");break;}
             var it = list[i];
             StatusText = $"正在下载 {i + 1}/{list.Count}：{it.DisplayName}";
             try
@@ -3027,16 +3024,17 @@ public partial class MainViewModel : ObservableObject
                     var local = await PrepareDragFileAsync(it);
                     if (!string.IsNullOrEmpty(local))
                     {
-                        File.Copy(local!, Path.Combine(localDir, Path.GetFileName(local!)), true);
-                        ok++;
+                        try{File.Copy(local!, Path.Combine(localDir, Path.GetFileName(local!)), true);ok++;}
+                        finally{try{File.Delete(local!);Directory.Delete(Path.GetDirectoryName(local!)!);}catch{}}
                     }
                 }
                 else
                 {
-                    await _fs!.DownloadAsync(it.FullPath, Path.Combine(localDir, it.Name));
+                    await fs.DownloadAsync(it.FullPath, Path.Combine(localDir, it.Name));
                     ok++;
                 }
             }
+            catch(OperationCanceledException){LogLine("BATCH DL 已取消后续下载");break;}
             catch (Exception ex) { LogLine("BATCH DL " + ex.Message); }
         }
         Toast($"已下载 {ok}/{list.Count} 项到 {localDir}");
@@ -3218,58 +3216,48 @@ public partial class MainViewModel : ObservableObject
     public async Task UploadToAsync(IEnumerable<string> localFiles, string targetDir)
     {
         InvalidatePrefetch();
-        if (_fs == null) return;
-        var files = localFiles.ToList();
+        var fs = _fs;
+        if (fs == null) { StatusText = "未连接 ADB 设备，不能上传。"; return; }
+        var files = localFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (files.Count == 0) return;
+        var completed = 0;
         foreach (var f in files)
         {
-            try
-            {
-                StatusText = "正在放入：" + System.IO.Path.GetFileName(f);
-                await _fs.UploadAsync(f, targetDir);
-            }
-            catch (Exception ex)
-            {
-                LogLine("UPLOAD " + f + " => " + ex.Message);
-                StatusText = "放入失败：" + ex.Message;
-            }
+            try { StatusText = "正在放入：" + Path.GetFileName(f); await fs.UploadAsync(f, targetDir); completed++; }
+            catch (OperationCanceledException) { StatusText = $"上传已取消，完成 {completed}/{files.Count} 项"; return; }
+            catch (Exception ex) { LogLine("UPLOAD " + f + " => " + ex.Message); }
         }
-        if (targetDir == CurrentPath) await NavigateAsync(CurrentPath);
-        StatusText = $"已放入 {files.Count} 个文件 → {targetDir}";
+        if (ReferenceEquals(fs, _fs) && targetDir == CurrentPath) await NavigateAsync(CurrentPath);
+        StatusText = $"放入完成：{completed}/{files.Count} 项" + (completed < files.Count ? $"，失败 {files.Count - completed} 项（见日志）" : "") + " → " + targetDir;
     }
 
     /// <summary>打包远端文件夹并下载到本地</summary>
     public async Task PackAndDownloadAsync(PosixEntry dir, string remoteTar, string localPath, CancellationToken ct = default)
     {
-        if (_fs == null) return;
-        await _fs.TarGzAsync(dir.FullPath, remoteTar, ct);
-        await _fs.DownloadAsync(remoteTar, localPath, ct);
-        try { await _fs.DeleteAsync(new[] { remoteTar }, ct); } catch { }
+        var fs=_fs ?? throw new InvalidOperationException("设备未连接");
+        try { await fs.TarGzAsync(dir.FullPath,remoteTar,ct); await fs.DownloadAsync(remoteTar,localPath,ct); }
+        finally { try{await fs.DeleteAsync(new[]{remoteTar},CancellationToken.None);}catch{} }
     }
 
-    /// <summary>准备拖出用的本地副本（文件夹会先打包成 tar.gz）</summary>
+    /// <summary>Each drag export owns its own directory; concurrent exports never share a filename.</summary>
     public async Task<string?> PrepareDragFileAsync(PosixEntry e, CancellationToken ct = default)
     {
-        if (_fs == null) return null;
-        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DashFileDrag");
-        System.IO.Directory.CreateDirectory(tempDir);
-
-        if (e.IsDir)
+        var fs=_fs;if(fs==null)return null;
+        var tempDir=Path.Combine(Path.GetTempPath(),"DashFileDrag",Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
         {
-            StatusText = "正在打包文件夹：" + e.Name;
-            var remoteTar = DevicePaths.TempFile("export", ".tar.gz");
-            await _fs.TarGzAsync(e.FullPath, remoteTar, ct);
-            var local = System.IO.Path.Combine(tempDir, e.Name + ".tar.gz");
-            await _fs.DownloadAsync(remoteTar, local, ct);
-            try { await _fs.DeleteAsync(new[] { remoteTar }, ct); } catch { }
-            StatusText = "已打包：" + local;
-            return local;
+            var safeName=Path.GetFileName(e.Name);
+            if(safeName!=e.Name||string.IsNullOrWhiteSpace(safeName)||safeName is "." or "..")throw new IOException("文件名不适用于 Windows 导出");
+            if(e.IsDir)
+            {
+                var remoteTar=DevicePaths.TempFile("export",".tar.gz");var local=Path.Combine(tempDir,safeName+".tar.gz");
+                try{await fs.TarGzAsync(e.FullPath,remoteTar,ct);await fs.DownloadAsync(remoteTar,local,ct);return local;}
+                finally{try{await fs.DeleteAsync(new[]{remoteTar},CancellationToken.None);}catch{}}
+            }
+            var target=Path.Combine(tempDir,safeName);await fs.DownloadAsync(e.FullPath,target,ct);return target;
         }
-
-        StatusText = "正在准备拖出：" + e.Name;
-        var target = System.IO.Path.Combine(tempDir, e.Name);
-        await _fs.DownloadAsync(e.FullPath, target, ct);
-        return target;
+        catch{try{Directory.Delete(tempDir);}catch{}throw;}
     }
 
     // ---------------- 杂项 ----------------

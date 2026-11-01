@@ -142,6 +142,7 @@ public sealed class UiRunner : IToolRunner
         if (a.Contains("flash") || a.Contains("erase")) Writes++;
         if (a.SequenceEqual(new[] { "devices" })) return Task.FromResult(new ToolResult(0, t == Transport.Fastboot ? "SIM-ONLY fastboot\n" + (Multiple ? "SIM-SECOND fastboot\n" : "") : ""));
         var key = a[^1]; var output = key switch {
+            "max-fetch-size" => "max-fetch-size: 0x1000000",
             "all" => "product: ui-test\ncurrent-slot: a\nis-userspace: no\nunlocked: yes\n" + string.Join("\n", Enumerable.Range(0, 1000).Select(i => $"partition-size:p{i:D4}: 0x1000")),
             _ when key.StartsWith("partition-size:") => key + ": 0x1000",
             _ when key.StartsWith("is-logical:") || key.StartsWith("has-slot:") => key + ": no",

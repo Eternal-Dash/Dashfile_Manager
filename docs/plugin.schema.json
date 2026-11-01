@@ -79,7 +79,7 @@
     },
     "apiVersion": {
       "type": "integer",
-      "default": 2,
+      "default": 3,
       "description": "编译时使用的插件 API 版本"
     },
     "minHostVersion": {

@@ -86,6 +86,14 @@ var argTest = await runner.RunAsync(Transport.Fastboot, new[] { "--fake-tool", "
 Check("argument list has no shell interpolation", JsonSerializer.Deserialize<string[]>(argTest.Output)!.SequenceEqual(new[] { "path with spaces & $.img", "boot_a" }));
 var failResult = await runner.RunAsync(Transport.Fastboot, new[] { "--fake-tool", "fail" }, null, TimeSpan.FromSeconds(15), null, ct); Check("exit code preserved", failResult.ExitCode == 7);
 await Reject("native read process timeout", () => runner.RunAsync(Transport.AdbRoot, new[] { "--fake-tool", "sleep" }, null, TimeSpan.FromMilliseconds(150), null, ct));
+fake.SupportsFetch = false;
+var unsupported = await engine.InspectAsync(target, ct);
+Check("fetch capability detected before backup", unsupported.Fetch == FetchSupport.Unsupported);
+var unsupportedOutput = Path.Combine(root, "unsupported-fetch");
+await Reject("unsupported fetch rejected before creating output", () => engine.BackupAsync(unsupported, unsupported.Partitions, unsupportedOutput, false, false, ct));
+Check("unsupported backup leaves no empty backup folder", !Directory.Exists(unsupportedOutput));
+fake.SupportsFetch = true;
+foreach (var bad in new[] { "CON.img", "name./boot.img", "a//boot.img", "LPT1.img" }) await Reject("reject platform-aliased archive path " + bad, () => Task.FromResult(FlashEngine.SafeChild(root, bad)));
 // Refactored command, erase and mode-switch paths must retain the same write guarantees.
 fake.Calls.Clear(); await engine.RunCommandAsync(target, "getvar \"current-slot\"", ct);
 Check("query remains bound to explicit serial", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "TEST-ONLY", "getvar", "current-slot" })));
@@ -104,11 +112,16 @@ fake.Erases = 0; fake.OnErase = () => engine.RequestStop(); await Reject("stop w
 fake.Erases = 0; await engine.EraseAsync(details, details.Partitions, false, ct); Check("new erase resets previous stop request", fake.Erases == details.Partitions.Count); Check("erase process has no mid-write cancellation or timeout", fake.EraseUninterruptible);
 fake.Calls.Clear(); await engine.RebootAsync(adbDetails.Target, "edl", ct); Check("ADB EDL uses reboot edl", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "ROOT-TEST", "reboot", "edl" })));
 fake.Calls.Clear(); await engine.RebootAsync(target, "edl", ct); Check("Fastboot EDL uses vendor oem command", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "TEST-ONLY", "oem", "edl" })));
+var nullEntries=Zip("null-manifest.zip",("manifest.json","{\"Format\":\"DashFile.PartitionBackup/1\",\"Complete\":true,\"Entries\":null,\"Requested\":null}"));
+await Reject("null manifest collections rejected",()=>FlashEngine.ExtractBackupAsync(nullEntries,Path.Combine(root,"bad-staging"),ct));
+var forged=Zip("forged-length.zip",("manifest.json",JsonSerializer.Serialize(manifest)),("boot_a.img","short"),("vbmeta_a.img","short"));
+await Reject("ZIP lengths must match manifest before extraction",()=>FlashEngine.ExtractBackupAsync(forged,Path.Combine(root,"bad-staging"),ct));
+Check("rejected archive creates no staging directory",!Directory.Exists(Path.Combine(root,"bad-staging")));
 Console.WriteLine($"{passed} passed, {failed} failed. Fixtures: {root}"); return failed == 0 ? 0 : 1;
 
 sealed class FakeRunner : IToolRunner
 {
-    public string Product = "test-product"; public bool WriteUninterruptible = true; public string Unlocked = "yes"; public bool Logical; public int Size = 4096; public string FailPartition = "";
+    public bool SupportsFetch = true; public string Product = "test-product"; public bool WriteUninterruptible = true; public string Unlocked = "yes"; public bool Logical; public int Size = 4096; public string FailPartition = "";
     public int Erases; public bool FailErase; public bool EraseUninterruptible = true; public Action? OnErase;
     public bool FailWrite, ShortRead; public int Writes; public Action? OnWrite;
     public List<string[]> Calls { get; } = new();
@@ -126,7 +139,7 @@ sealed class FakeRunner : IToolRunner
         }
         if (a.Length > 3 && a[2] == "getvar")
         {
-            var key = a[3]; if (key == "all") return new(0, All);
+            var key = a[3]; if (key == "max-fetch-size") return new(SupportsFetch ? 0 : 1, SupportsFetch ? "max-fetch-size: 0x1000000" : "FAILED remote: GetVar Variable Not found"); if (key == "all") return new(0, All);
             if (key.StartsWith("has-slot:")) return new(0, key + ": " + (key.EndsWith(":boot") ? "yes" : "no"));
             if (key.StartsWith("is-logical:")) return new(0, key + ": " + (Logical ? "yes" : "no"));
             if (key.StartsWith("partition-size:")) return new(0, key + ": " + (key.EndsWith(FailPartition) && FailPartition != "" ? "0" : Size.ToString("x")));
