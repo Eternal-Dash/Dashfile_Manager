@@ -1,3 +1,4 @@
+﻿using Avalonia;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
@@ -204,6 +205,19 @@ File.WriteAllText(Path.Combine(tmpRoot, "plugin-data", "com.demo.ok2", "settings
 await pm.UninstallAsync("com.demo.ok2", deleteData: true);
 Check("卸载(删数据)：插件数据被删除", !Directory.Exists(Path.Combine(tmpRoot, "plugin-data", "com.demo.ok2")));
 
+// Installing an already installed ID without replace must never delete its directory.
+MakePlugin("com.demo.keep", "com.demo.keep");
+var keepMarker = Path.Combine(plugins, "com.demo.keep", "keep.txt");
+File.WriteAllText(keepMarker, "existing plugin data");
+var packageSource = Path.Combine(tmpRoot, "package-source"); Directory.CreateDirectory(packageSource);
+File.Copy(Path.Combine(plugins, "com.demo.keep", "plugin.json"), Path.Combine(packageSource, "plugin.json"));
+File.WriteAllText(Path.Combine(packageSource, "nope.dll"), "fake");
+var duplicatePackage = Path.Combine(tmpRoot, "duplicate.dfp");
+System.IO.Compression.ZipFile.CreateFromDirectory(packageSource, duplicatePackage);
+var duplicateRejected = false;
+try { await pm.InstallPackageAsync(duplicatePackage, false); } catch (InvalidOperationException) { duplicateRejected = true; }
+Check("duplicate installation rejects without deleting existing plugin", duplicateRejected && File.Exists(keepMarker));
+
 try { Directory.Delete(tmpRoot, true); } catch { }
 
 // ---------- 5) 合并后的 AXML 阅读器（自建二进制 XML） ----------
@@ -406,6 +420,136 @@ byte[] BuildDeepAxml(int depth)
 }
 
 Console.WriteLine();
+// Theme round-trip and readable light palettes, without opening windows or touching settings.
+Avalonia.AppBuilder.Configure<Avalonia.Application>().UsePlatformDetect().SetupWithoutStarting();
+var themeApp = Avalonia.Application.Current!;
+double Luma(Avalonia.Media.Color color)
+{
+    double C(byte n) { var v = n / 255d; return v <= 0.04045 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4); }
+    return 0.2126 * C(color.R) + 0.7152 * C(color.G) + 0.0722 * C(color.B);
+}
+Avalonia.Media.Color ThemeColor(string key) => ((Avalonia.Media.ISolidColorBrush)themeApp.Resources[key]!).Color;
+foreach (var style in new[] { "m3", "miui" })
+foreach (var theme in DashFile.Models.ThemeOption.Presets())
+{
+    ThemeService.ApplyAppearance("dark", style, theme.Hex);
+    var original = themeApp.Resources.Where(x => x.Value is Avalonia.Media.ISolidColorBrush)
+        .ToDictionary(x => x.Key, x => ((Avalonia.Media.ISolidColorBrush)x.Value!).Color);
+    ThemeService.ApplyAppearance("light", style, theme.Hex);
+    Check($"light {style}/{theme.Name}: Fluent Light", themeApp.RequestedThemeVariant == Avalonia.Styling.ThemeVariant.Light);
+    foreach (var key in new[] { "TextMain", "TextSub", "TextMuted", "AccentText", "WarnFg", "Danger", "Ok" })
+    {
+        var contrast = (Luma(ThemeColor("Bg")) + 0.05) / (Luma(ThemeColor(key)) + 0.05);
+        Check($"light {style}/{theme.Name}: {key} contrast >= 4.5", contrast >= 4.5, contrast.ToString("F2"));
+    }
+    Check($"light {style}/{theme.Name}: solid region boundaries",
+        new[] { "Divider", "Hairline", "HairlineSoft", "StrokeSoft" }.All(key => ThemeColor(key).A == 255));
+    Check($"light {style}/{theme.Name}: neutral controls, popup and inset",
+        ThemeColor("ControlFill") == Avalonia.Media.Colors.White && ThemeColor("PopupSurface") == Avalonia.Media.Colors.White &&
+        ThemeColor("ChartBg") == Avalonia.Media.Color.Parse("#EBF0F6"));
+    Check($"light {style}/{theme.Name}: tinted selection remains readable",
+        (Luma(ThemeColor("SelBg")) + 0.05) / (Luma(ThemeColor("TextMain")) + 0.05) >= 4.5);
+    Check($"light {style}/{theme.Name}: primary button remains readable",
+        (Luma(ThemeColor("BtnPriFg")) + 0.05) / (Luma(ThemeColor("BtnPriBg")) + 0.05) >= 4.5);
+    Check($"light {style}/{theme.Name}: Mica preferred, no Acrylic fallback",
+        ((Avalonia.Controls.WindowTransparencyLevel[])themeApp.Resources["WindowMaterialLevels"]!).SequenceEqual(
+            new[] { Avalonia.Controls.WindowTransparencyLevel.Mica, Avalonia.Controls.WindowTransparencyLevel.None }));
+    ThemeService.ApplyMaterial(false, style, theme.Hex);
+    Check($"light {style}/{theme.Name}: solid fallback has opaque background",
+        themeApp.Resources["WindowBackdrop"] is Avalonia.Media.ISolidColorBrush solid && solid.Color.A == 255 &&
+        ((Avalonia.Controls.WindowTransparencyLevel[])themeApp.Resources["WindowMaterialLevels"]!).Length == 1);
+    ThemeService.ApplyMaterial(true, style, theme.Hex);
+    ThemeService.ApplyAppearance("dark", style, theme.Hex);
+    Check($"round trip {style}/{theme.Name}: all brush resources restored",
+        original.All(x => ((Avalonia.Media.ISolidColorBrush)themeApp.Resources[x.Key]!).Color == x.Value));
+}
+
+// Glass is optional and independent; switching materials never turns the dark theme translucent.
+var defaults = new AppSettings();
+Check("defaults: light material, glass opt-in", defaults.Appearance == "light" && defaults.MaterialEnabled && !defaults.GlassEnabled);
+var migrated = new AppSettings { Appearance = "dark", MaterialEnabled = false };
+Check("defaults: existing settings migrate once", migrated.EnsureLightMaterialDefault() && migrated.Appearance == "light" && migrated.MaterialEnabled);
+migrated.Appearance = "dark";
+migrated.MaterialEnabled = false;
+Check("defaults: subsequent user choice is retained", !migrated.EnsureLightMaterialDefault() && migrated.Appearance == "dark" && !migrated.MaterialEnabled);
+migrated.GlassEnabled = true;
+var restored = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(migrated));
+Check("glass preference survives JSON", restored.GlassEnabled && restored.LightMaterialDefaultV4);
+ThemeService.ApplyAppearance("light", "m3", "#7DD3FC");
+var plainPanel = ThemeColor("PanelAlt");
+ThemeService.ApplyGlass(true, "m3", "#7DD3FC");
+Check("glass: native Acrylic then Mica then solid", ((Avalonia.Controls.WindowTransparencyLevel[])themeApp.Resources["WindowMaterialLevels"]!).SequenceEqual(
+    new[] { Avalonia.Controls.WindowTransparencyLevel.AcrylicBlur, Avalonia.Controls.WindowTransparencyLevel.Mica, Avalonia.Controls.WindowTransparencyLevel.None }));
+foreach (var glassTheme in DashFile.Models.ThemeOption.Presets())
+{
+    ThemeService.ApplyAppearance("light", "m3", glassTheme.Hex);
+    var wash = (Avalonia.Media.LinearGradientBrush)themeApp.Resources["WindowBackdrop"]!;
+    var contrastOnBlack = wash.GradientStops.Min(stop =>
+    {
+        var c = stop.Color;
+        var floor = Avalonia.Media.Color.FromRgb((byte)(c.R * c.A / 255), (byte)(c.G * c.A / 255), (byte)(c.B * c.A / 255));
+        return (Luma(floor) + 0.05) / (Luma(ThemeColor("TextMuted")) + 0.05);
+    });
+    Check($"glass {glassTheme.Name}: solid boundaries and stable reading surfaces",
+        new[] { "Divider", "Hairline", "HairlineSoft", "StrokeSoft", "ControlFill", "PopupSurface" }.All(key => ThemeColor(key).A == 255));
+    Check($"glass {glassTheme.Name}: muted text readable even over black", contrastOnBlack >= 4.5, contrastOnBlack.ToString("F2"));
+}
+ThemeService.ApplyAppearance("light", "m3", "#7DD3FC");
+Check("glass: content is translucent and still substantially white", ThemeColor("PanelAlt").A >= 180 && ThemeColor("PanelAlt").A < 255);
+ThemeService.ApplyMaterial(false, "m3", "#7DD3FC");
+Check("glass: master off is opaque", ThemeColor("WindowBackdrop").A == 255 && ((Avalonia.Controls.WindowTransparencyLevel[])themeApp.Resources["WindowMaterialLevels"]!).Length == 1);
+ThemeService.ApplyMaterial(true, "m3", "#7DD3FC");
+ThemeService.ApplyAppearance("dark", "m3", "#7DD3FC");
+Check("glass: dark remains opaque", ThemeColor("WindowBackdrop").A == 255 && ThemeColor("PanelAlt").A == 255);
+ThemeService.ApplyAppearance("light", "m3", "#7DD3FC");
+ThemeService.ApplyGlass(false, "m3", "#7DD3FC");
+Check("glass off restores original panel", ThemeColor("PanelAlt") == plainPanel);
+var icons = DashFile.Controls.FileIcon.Instance;
+var iconEntry = new DashFile.Models.PosixEntry { Name = "sample.png" };
+var iconA = icons.Convert(iconEntry, typeof(Avalonia.Media.Geometry), null, System.Globalization.CultureInfo.InvariantCulture);
+var iconB = icons.Convert(iconEntry, typeof(Avalonia.Media.Geometry), null, System.Globalization.CultureInfo.InvariantCulture);
+Check("file glyph geometry reused across rows", ReferenceEquals(iconA, iconB));
+Check("file glyph types stay distinct", !ReferenceEquals(iconA, icons.Convert(new DashFile.Models.PosixEntry { Name = "sample.apk" }, typeof(Avalonia.Media.Geometry), null, System.Globalization.CultureInfo.InvariantCulture)));
+Check("menu glyph catalog parses", DashFile.Views.MenuIcons.Has("plugin") && DashFile.Views.MenuIcons.Create("cut") != null);
+
+// API v2 navigation and active-operation lifecycle.
+for (var count = 0; count <= 3; count++)
+{
+    for (var visual = 0; visual < 6 + count; visual++)
+    {
+        var page = DashFile.Services.Plugins.PluginNavigation.ToPageIndex(visual, count);
+        Check($"navigation mapping round-trip count={count} visual={visual}", DashFile.Services.Plugins.PluginNavigation.ToVisualIndex(page, count) == visual);
+    }
+    Check($"settings stays last count={count}", DashFile.Services.Plugins.PluginNavigation.ToVisualIndex(5, count) == 5 + count);
+}
+var guardRoot = Path.Combine(Path.GetTempPath(), "dsh-guard-" + Guid.NewGuid().ToString("N"));
+var guardedManager = new DashFile.Services.Plugins.PluginManager("1.0.0", new[] { Path.Combine(guardRoot, "plugins") }, guardRoot, (_, _) => throw new Exception("not used"));
+var descriptor = new DashFile.Services.Plugins.PluginDescriptor(new DashFile.PluginApi.PluginManifest { Id = "com.test.guard", Name = "Guard" }, Path.Combine(guardRoot, "plugins", "com.test.guard"), "none.dll");
+var activeGuard = new TestOperationGuard();
+typeof(DashFile.Services.Plugins.PluginDescriptor).GetField("Instance", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(descriptor, activeGuard);
+typeof(DashFile.Services.Plugins.PluginDescriptor).GetProperty("Enabled")!.SetValue(descriptor, true);
+((System.Collections.Generic.List<DashFile.Services.Plugins.PluginDescriptor>)typeof(DashFile.Services.Plugins.PluginManager).GetField("_plugins", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(guardedManager)!).Add(descriptor);
+foreach (var action in new Func<Task>[] { () => guardedManager.DisableAsync(descriptor.Id), () => guardedManager.ReloadOneAsync(descriptor.Id), () => guardedManager.ReloadAllAsync(), () => guardedManager.UninstallAsync(descriptor.Id, false) })
+{
+    var blocked = false;
+    try { await action(); } catch (InvalidOperationException) { blocked = true; }
+    Check("active device operation prevents lifecycle mutation", blocked && descriptor.Enabled && activeGuard.ShutdownCount == 0);
+}
+Check("window can detect active plugin task", guardedManager.HasActiveOperations);
+activeGuard.Active = false; await guardedManager.DisableAsync(descriptor.Id);
+Check("idle plugin disables normally", !descriptor.Enabled && activeGuard.ShutdownCount == 1 && !guardedManager.HasActiveOperations);
+try { Directory.Delete(guardRoot, true); } catch { }
+
 Console.WriteLine(fail == 0 ? "ALL PASS" : fail + " FAILED");
 
 return fail;
+sealed class TestOperationGuard : DashFile.PluginApi.PluginBase, DashFile.PluginApi.IPluginOperationGuard
+{
+    public bool Active = true;
+    public int ShutdownCount;
+    public bool IsOperationActive => Active;
+    public string OperationDescription => "test device write";
+    public override DashFile.PluginApi.PluginMetadata Metadata => new() { Id = "com.test.guard", Name = "Guard" };
+    protected override Task OnInitializeAsync(CancellationToken ct) => Task.CompletedTask;
+    public override Task ShutdownAsync(CancellationToken ct = default) { ShutdownCount++; return Task.CompletedTask; }
+}

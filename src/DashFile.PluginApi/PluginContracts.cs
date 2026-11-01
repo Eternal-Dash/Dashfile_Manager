@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,6 +119,11 @@ public sealed class PluginAction
 /// </summary>
 public sealed class PluginPage
 {
+    /// <summary>API v2: also expose this page in the main navigation, before Settings.</summary>
+    public bool ShowInMainNavigation { get; init; }
+    /// <summary>Main navigation order (ascending); ties use plugin/page IDs.</summary>
+    public int NavigationOrder { get; init; }
+
     public string Id { get; init; } = "";
 
     public string Title { get; init; } = "";
@@ -487,4 +492,11 @@ public interface IPluginEvents
 
     /// <summary>文件页选中项变化；没有选中时为 null。</summary>
     event EventHandler<PluginTarget?>? FileSelectionChanged;
+}
+
+/// <summary>Optional lifecycle guard: a host must not unload an active device operation.</summary>
+public interface IPluginOperationGuard
+{
+    bool IsOperationActive { get; }
+    string OperationDescription { get; }
 }

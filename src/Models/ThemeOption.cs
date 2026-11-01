@@ -17,7 +17,7 @@ public partial class ThemeOption : ObservableObject
 
     public static List<ThemeOption> Presets() => new()
     {
-        new ThemeOption { Name = "黑白", Hex = "#FFFFFF" },
+        new ThemeOption { Name = "中性", Hex = "#FFFFFF" },
         new ThemeOption { Name = "淡紫", Hex = "#A78BFA" },
         new ThemeOption { Name = "冰蓝", Hex = "#7DD3FC" },
         new ThemeOption { Name = "薄荷", Hex = "#6EE7B7" },

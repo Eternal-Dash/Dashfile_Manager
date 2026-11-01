@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><LangVersion>latest</LangVersion><AssemblyName>FastbootFlashPlugin</AssemblyName><RootNamespace>FastbootFlashPlugin</RootNamespace><EnableDynamicLoading>true</EnableDynamicLoading><CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22"><PrivateAssets>all</PrivateAssets><ExcludeAssets>runtime</ExcludeAssets></PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2"><PrivateAssets>all</PrivateAssets></PackageReference>
+    <ProjectReference Include="../../src/DashFile.PluginApi/DashFile.PluginApi.csproj"><Private>false</Private></ProjectReference>
+  </ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DashFile 插件清单 plugin.json",
   "description": "放在 .dfp 包根目录，和入口 DLL 同级。字段含义见 docs/插件开发指南.md。",
@@ -79,7 +79,7 @@
     },
     "apiVersion": {
       "type": "integer",
-      "default": 1,
+      "default": 2,
       "description": "编译时使用的插件 API 版本"
     },
     "minHostVersion": {

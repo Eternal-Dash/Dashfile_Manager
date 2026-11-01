@@ -21,12 +21,7 @@
     <Style Selector="TextBlock.h1">
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground">
-        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-          <GradientStop Color="#FFFFFFFF" Offset="0"/>
-          <GradientStop Color="#FFD7CCFE" Offset="1"/>
-        </LinearGradientBrush>
-      </Setter>
+      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
     </Style>
     <Style Selector="TextBlock.h2">
       <Setter Property="FontSize" Value="14.5"/>

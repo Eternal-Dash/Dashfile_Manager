@@ -20,8 +20,9 @@ if (Test-Path (Join-Path $sdk "dotnet.exe")) {
 
 # 热插拔插件：每个插件 = 一个目录 + plugin.json + 入口 dll。
 # 只复制入口 dll；Avalonia / DashFile.PluginApi 由宿主提供。
-# 只随包一个插件：逆向工具箱（MenuIcons + 子菜单由宿主统一处理）
+# 按下列清单生成插件包；宿主依赖不重复打包。
 $plugins = @(
+    @{ Name = "FastbootFlashPlugin"; Id = "com.dashfile.fastbootflash"; Dll = "FastbootFlashPlugin.dll" },
     @{ Name = "AvbStudioPlugin"; Id = "com.dashfile.avbstudio"; Dll = "AvbStudioPlugin.dll" },
     @{ Name = "ReverseToolboxPlugin"; Id = "com.dashfile.reversetool"; Dll = "ReverseToolboxPlugin.dll" },
     # 示例插件：不随仓库 plugins/ 与发布包分发，只作为二次开发的模板（手动取 buildplugin-distcom.dashfile.hello.dfp）
@@ -44,6 +45,7 @@ foreach ($plugin in $plugins) {
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
     Copy-Item $src $dst -Force
     Copy-Item (Join-Path $projectDir "plugin.json") $dst -Force
+    if (Test-Path (Join-Path $projectDir "README.md")) { Copy-Item (Join-Path $projectDir "README.md") $dst -Force }
     # 许可证随插件一起分发（GPLv3 要求）
     Copy-Item (Join-Path $root "LICENSE") $dst -Force
     Copy-Item (Join-Path $root "COPYRIGHT") $dst -Force

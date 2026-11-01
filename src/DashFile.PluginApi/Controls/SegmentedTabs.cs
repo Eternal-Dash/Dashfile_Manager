@@ -133,6 +133,16 @@ public sealed class SegmentedTabs : Panel
     {
         _pill.Classes.Add("segpill");
         Children.Add(_pill);
+        Children.CollectionChanged += (_, e) =>
+        {
+            if (e.OldItems != null)
+                foreach (var item in e.OldItems)
+                    if (item is Button old) { old.Click -= OnDeclarativeClick; _wired.Remove(old); }
+            WireDeclarativeButtons();
+            UpdateClasses();
+            InvalidateMeasure();
+            PostPillUpdate();
+        };
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

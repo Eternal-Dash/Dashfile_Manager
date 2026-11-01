@@ -51,6 +51,7 @@ public partial class MainViewModel : ObservableObject
             AppSettings.Save();
         }
 
+        if (AppSettings.Current.EnsureLightMaterialDefault()) AppSettings.Save();
         var saved = AppSettings.Current.AccentHex;
         // 玻璃风格已移除：老配置里的 "glass" 归位成标准风格，并写回设置
         var savedStyle = string.Equals(AppSettings.Current.StyleKey, "miui", StringComparison.OrdinalIgnoreCase)
@@ -64,7 +65,10 @@ public partial class MainViewModel : ObservableObject
         StyleKey = savedStyle;
         foreach (var t in Themes) t.IsSelected = string.Equals(t.Hex, saved, StringComparison.OrdinalIgnoreCase);
         foreach (var st in Styles) st.IsSelected = string.Equals(st.Key, savedStyle, StringComparison.OrdinalIgnoreCase);
-        try { ThemeService.ApplyStyle(savedStyle, saved); } catch { }
+        IsGlassEnabled = AppSettings.Current.GlassEnabled;
+        IsMaterialEnabled = AppSettings.Current.MaterialEnabled;
+        IsLightMode = string.Equals(AppSettings.Current.Appearance, "light", StringComparison.OrdinalIgnoreCase);
+        ThemeService.ApplyAppearance(IsLightMode ? "light" : "dark", savedStyle, saved);
 
         // 调试用：DASHFILE_START_TAB=0~5 可直接以某个标签页启动（不影响正常使用）
         if (AppEnvironment.StartTab is { } startTab) SelectedTab = startTab;
@@ -117,6 +121,12 @@ public partial class MainViewModel : ObservableObject
     public bool IsAppsTab => SelectedTab == 3;
     public bool IsPluginsTab => SelectedTab == 4;
     public bool IsSettingsTab => SelectedTab == 5;
+    public bool IsNavigationTab => SelectedTab >= 6 && SelectedTab - 6 < NavigationPages.Count;
+    public int NavigationIndex
+    {
+        get => DashFile.Services.Plugins.PluginNavigation.ToVisualIndex(SelectedTab, NavigationPages.Count);
+        set => SelectedTab = DashFile.Services.Plugins.PluginNavigation.ToPageIndex(value, NavigationPages.Count);
+    }
     public string RightStatusText => IsDeviceTab ? BatteryShort : StatusText;
 
     [ObservableProperty] private string _deviceModeText = "未连接";
@@ -133,6 +143,9 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsAppsTab));
         OnPropertyChanged(nameof(IsPluginsTab));
         OnPropertyChanged(nameof(IsSettingsTab));
+        OnPropertyChanged(nameof(IsNavigationTab));
+        OnPropertyChanged(nameof(NavigationIndex));
+        if (IsNavigationTab) _ = CreateNavigationViewAsync();
         OnPropertyChanged(nameof(RightStatusText));
         if (value == 0) LoadDeviceInfoAsync(_lastSerial, "", "").Safe("读取设备信息", m => StatusText = m);
         if (value == 2) LoadModulesAsync().Safe("读取模块", m => StatusText = m);
@@ -2243,7 +2256,10 @@ public partial class MainViewModel : ObservableObject
                         : $"{list.Count(x => x.IsGranted)} 个已授权 · 共 {total} 个应用 · 正在读取图标…")
                 : $"{total} 个应用 · 正在读取版本与图标…";
             var done = 0;
-            using var sem = new SemaphoreSlim(8);   // 方法结束即释放（下面的并发任务全部 await 完）
+            // 不要 using：下面的图标任务是 fire-and-forget（_ = Task.Run），方法返回时它们还在跑。
+            //   用 using 会在方法结束时 Dispose，任务里的 finally 再 Release 就抛 ObjectDisposedException——
+            //   而 finally 抛出的异常不会被 catch 接住，任务变成 Unobserved，最后在终结器线程炸掉进程。
+            var sem = new SemaphoreSlim(8);
             var loadWatch = System.Diagnostics.Stopwatch.StartNew();
 
             // 一次 dumpsys 拿到所有 versionName，避免 370 个应用各跑一次 adb（约省 30 秒）。
@@ -2289,7 +2305,7 @@ public partial class MainViewModel : ObservableObject
                         });
                     }
                     catch { }
-                    finally { sem.Release(); }
+                    finally { try { sem.Release(); } catch (ObjectDisposedException) { } }
                 }, ct);
             }
         }
@@ -2303,6 +2319,33 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<ThemeOption> Themes { get; } = new();
     public ObservableCollection<StyleOption> Styles { get; } = new();
+    [ObservableProperty] private bool _isGlassEnabled;
+
+    partial void OnIsGlassEnabledChanged(bool value)
+    {
+        ThemeService.ApplyGlass(value, StyleKey, AccentHex);
+        AppSettings.Current.GlassEnabled = value;
+        AppSettings.Save();
+    }
+
+    [ObservableProperty] private bool _isMaterialEnabled = true;
+
+    partial void OnIsMaterialEnabledChanged(bool value)
+    {
+        ThemeService.ApplyMaterial(value, StyleKey, AccentHex);
+        AppSettings.Current.MaterialEnabled = value;
+        AppSettings.Save();
+    }
+
+    [ObservableProperty] private bool _isLightMode;
+
+    partial void OnIsLightModeChanged(bool value)
+    {
+        ThemeService.ApplyAppearance(value ? "light" : "dark", StyleKey, AccentHex);
+        AppSettings.Current.Appearance = value ? "light" : "dark";
+        AppSettings.Save();
+    }
+
     [ObservableProperty] private string _styleKey = "m3";
 
     [ObservableProperty] private string _accentHex = "#A78BFA";

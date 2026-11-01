@@ -13,6 +13,10 @@ public class SparkLine : Control
     public static readonly StyledProperty<IReadOnlyList<double>?> ValuesProperty =
         AvaloniaProperty.Register<SparkLine, IReadOnlyList<double>?>(nameof(Values));
 
+    public static readonly StyledProperty<IBrush?> GridBrushProperty =
+        AvaloniaProperty.Register<SparkLine, IBrush?>(nameof(GridBrush));
+    public IBrush? GridBrush { get => GetValue(GridBrushProperty); set => SetValue(GridBrushProperty, value); }
+
     public static readonly StyledProperty<IBrush?> LineBrushProperty =
         AvaloniaProperty.Register<SparkLine, IBrush?>(nameof(LineBrush));
 
@@ -30,7 +34,7 @@ public class SparkLine : Control
 
     static SparkLine()
     {
-        AffectsRender<SparkLine>(ValuesProperty, LineBrushProperty, FillBrushProperty);
+        AffectsRender<SparkLine>(ValuesProperty, LineBrushProperty, FillBrushProperty, GridBrushProperty);
     }
 
     public override void Render(DrawingContext context)
@@ -41,7 +45,7 @@ public class SparkLine : Control
         if (w <= 2 || h <= 2) return;
 
         // 网格（没有数据时也画，避免看起来像一块空白）
-        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), 1);
+        var gridPen = new Pen(GridBrush ?? Brushes.Gray, 1);
         for (int i = 1; i < 4; i++)
         {
             var y = h * i / 4.0;

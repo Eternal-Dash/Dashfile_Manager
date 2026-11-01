@@ -17,6 +17,7 @@ Log/
 # ---- 发版 / 本地归档（不进版本库）----
 /build/_archive/
 /build/ui-shot/
+/build/theme-preview/
 /artifacts/
 *.dfp
 # 例外：仓库里的 plugins/ 是官方插件下载区，要能提交

@@ -242,6 +242,7 @@ public partial class MainViewModel : ObservableObject
             PluginList.Add(info);
         }
 
+        RefreshNavigationPages();
         PluginsEmpty = PluginList.Count == 0;
         var loaded = PluginList.Count(p => p.IsLoaded);
         PluginsStatus = PluginList.Count == 0

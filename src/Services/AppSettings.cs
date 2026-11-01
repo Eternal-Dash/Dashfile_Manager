@@ -9,6 +9,20 @@ public sealed class AppSettings
 {
     public string AccentHex { get; set; } = "#FFFFFF";
     public bool ThemeDefaultV2 { get; set; }
+    public bool MaterialEnabled { get; set; } = true;
+    public string Appearance { get; set; } = "light";
+    public bool GlassEnabled { get; set; }
+    public bool LightMaterialDefaultV4 { get; set; }
+
+    // Migrate once, then respect every subsequent appearance/material choice.
+    public bool EnsureLightMaterialDefault()
+    {
+        if (LightMaterialDefaultV4) return false;
+        Appearance = "light";
+        MaterialEnabled = true;
+        LightMaterialDefaultV4 = true;
+        return true;
+    }
     public string StyleKey { get; set; } = "m3";
     public double WindowWidth { get; set; } = 1135;
     public double WindowHeight { get; set; } = 707;

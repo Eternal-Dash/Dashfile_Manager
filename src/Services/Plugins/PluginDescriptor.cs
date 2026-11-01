@@ -103,6 +103,8 @@ public sealed class PluginDescriptor
         Description = page.Description,
         Icon = page.Icon,
         CreateViewAsync = page.CreateViewAsync,
+        ShowInMainNavigation = page.ShowInMainNavigation,
+        NavigationOrder = page.NavigationOrder,
     };
 }
 

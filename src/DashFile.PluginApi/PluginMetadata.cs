@@ -1,4 +1,4 @@
-namespace DashFile.PluginApi;
+﻿namespace DashFile.PluginApi;
 
 /// <summary>
 /// 插件 API 的版本信息。宿主与插件通过 <see cref="Version"/> 判断兼容性：
@@ -6,8 +6,8 @@ namespace DashFile.PluginApi;
 /// </summary>
 public static class PluginApiInfo
 {
-    /// <summary>当前插件 API 主版本。破坏性改动才递增，新增接口用新类型/默认实现。</summary>
-    public const int Version = 1;
+    /// <summary>当前插件 API 能力版本。v2 新增主导航和任务生命周期保护；宿主继续接受 v1 插件。</summary>
+    public const int Version = 2;
 
     /// <summary>宿主产品名。</summary>
     public const string HostProduct = "DashFile";

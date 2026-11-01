@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -154,6 +154,7 @@ public sealed class PluginManager
         var descriptor = Find(id);
         if (descriptor == null) return;
 
+        EnsureIdle(descriptor);
         descriptor.Enabled = false;
         _enabledState[id] = false;
         SaveState();
@@ -376,6 +377,7 @@ public sealed class PluginManager
         if (!File.Exists(packagePath))
             throw new FileNotFoundException("找不到插件包", packagePath);
 
+        foreach (var plugin in _plugins) EnsureIdle(plugin);
         var root = PrimaryRoot;
         Directory.CreateDirectory(root);
         // 解压目录必须和目标在同一个卷上：Directory.Move 不支持跨卷，
@@ -384,6 +386,7 @@ public sealed class PluginManager
         Directory.CreateDirectory(temp);
         string? backup = null;
         string? target = null;
+        var targetOwned = false;
 
         try
         {
@@ -409,7 +412,10 @@ public sealed class PluginManager
                 Directory.Delete(target, recursive: true);
 
             if (!PathsEqual(target, packageRoot))
+            {
                 Directory.Move(packageRoot, target);
+                targetOwned = true;
+            }
 
             await LoadAllAsync().ConfigureAwait(true);
             var installed = Find(manifest.Id);
@@ -426,7 +432,7 @@ public sealed class PluginManager
             // 安装失败尽量恢复旧版本
             try
             {
-                if (target != null && Directory.Exists(target))
+                if (targetOwned && target != null && Directory.Exists(target))
                     Directory.Delete(target, recursive: true);
                 // CA1508 会把这里判成"backup 恒为 null"：它看不到 await LoadAllAsync() 也会抛，
                 // 而那条路径上旧版本已经改名到 backup、新版本已经就位 —— 这里必须回滚。
@@ -617,8 +623,17 @@ public sealed class PluginManager
         }
     }
 
+    private static void EnsureIdle(PluginDescriptor descriptor)
+    {
+        if (descriptor.Instance is IPluginOperationGuard { IsOperationActive: true } guard)
+            throw new InvalidOperationException("插件正在执行任务，请先停止并等待任务结束：" + guard.OperationDescription);
+    }
+
+    public bool HasActiveOperations => _plugins.Any(p => p.Instance is IPluginOperationGuard { IsOperationActive: true });
+
     private async Task UnloadOneAsync(PluginDescriptor descriptor)
     {
+        EnsureIdle(descriptor);
         if (descriptor.Instance != null)
         {
             try
@@ -663,6 +678,7 @@ public sealed class PluginManager
 
     private async Task UnloadAllAsync()
     {
+        foreach (var plugin in _plugins) EnsureIdle(plugin);
         foreach (var plugin in _plugins.ToArray())
             await UnloadOneAsync(plugin).ConfigureAwait(true);
         _sinks.Clear();

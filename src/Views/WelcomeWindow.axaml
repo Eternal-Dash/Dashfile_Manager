@@ -7,37 +7,18 @@
         Background="{DynamicResource Bg}"
         FontFamily="Microsoft YaHei UI, Segoe UI">
 
-  <Window.Resources>
-    <!-- 灰黑三层：窗口底 < 卡片 < 说明块；强调色只用淡蓝 / 淡紫，不做高饱和 -->
-    <SolidColorBrush x:Key="WCard" Color="#15161C"/>
-    <SolidColorBrush x:Key="WCardWarm" Color="#1A1728"/>
-    <SolidColorBrush x:Key="WInset" Color="#101116"/>
-    <SolidColorBrush x:Key="WHair" Color="#2A2D38"/>
-    <SolidColorBrush x:Key="WBlue" Color="#A8C7FA"/>
-    <SolidColorBrush x:Key="WBlueTint" Color="#1A2130"/>
-    <SolidColorBrush x:Key="WPurple" Color="#CFBCF7"/>
-    <SolidColorBrush x:Key="WPurpleTint" Color="#211C2E"/>
-    <SolidColorBrush x:Key="WText" Color="#E8E9ED"/>
-    <SolidColorBrush x:Key="WSub" Color="#A2A6B1"/>
-    <SolidColorBrush x:Key="WMuted" Color="#7C808B"/>
 
-    <!-- 顶部氛围：极淡的冷色光晕，只为了让大面积灰黑不显得平 -->
-    <LinearGradientBrush x:Key="WGlow" StartPoint="0%,0%" EndPoint="0%,100%">
-      <GradientStop Color="#141824" Offset="0"/>
-      <GradientStop Color="#00141824" Offset="1"/>
-    </LinearGradientBrush>
-  </Window.Resources>
 
   <Window.Styles>
     <Style Selector="Border.card">
       <Setter Property="CornerRadius" Value="16"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="{StaticResource WHair}"/>
-      <Setter Property="Background" Value="{StaticResource WCard}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource WHair}"/>
+      <Setter Property="Background" Value="{DynamicResource WCard}"/>
       <Setter Property="Padding" Value="24,18,24,20"/>
     </Style>
     <Style Selector="Border.card.author">
-      <Setter Property="Background" Value="{StaticResource WCardWarm}"/>
+      <Setter Property="Background" Value="{DynamicResource WCardWarm}"/>
     </Style>
 
     <Style Selector="TextBlock.cardtitle">
@@ -45,28 +26,28 @@
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="HorizontalAlignment" Value="Center"/>
       <Setter Property="LetterSpacing" Value="0.3"/>
-      <Setter Property="Foreground" Value="{StaticResource WBlue}"/>
+      <Setter Property="Foreground" Value="{DynamicResource WBlue}"/>
     </Style>
     <Style Selector="TextBlock.cardtitle.purple">
-      <Setter Property="Foreground" Value="{StaticResource WPurple}"/>
+      <Setter Property="Foreground" Value="{DynamicResource WPurple}"/>
     </Style>
 
     <Style Selector="TextBlock.cardbody">
       <Setter Property="FontSize" Value="13.8"/>
       <Setter Property="LineHeight" Value="23"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="Foreground" Value="{StaticResource WSub}"/>
+      <Setter Property="Foreground" Value="{DynamicResource WSub}"/>
       <Setter Property="Margin" Value="0,13,0,0"/>
     </Style>
 
     <Style Selector="Border.verpill">
       <Setter Property="CornerRadius" Value="999"/>
-      <Setter Property="Background" Value="{StaticResource WBlueTint}"/>
+      <Setter Property="Background" Value="{DynamicResource WBlueTint}"/>
       <Setter Property="Padding" Value="9,2"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style Selector="Border.verpill > TextBlock">
-      <Setter Property="Foreground" Value="{StaticResource WBlue}"/>
+      <Setter Property="Foreground" Value="{DynamicResource WBlue}"/>
       <Setter Property="FontSize" Value="11.5"/>
     </Style>
 
@@ -76,15 +57,15 @@
 
     <Style Selector="Border.note">
       <Setter Property="CornerRadius" Value="12"/>
-      <Setter Property="Background" Value="{StaticResource WInset}"/>
+      <Setter Property="Background" Value="{DynamicResource WInset}"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="{StaticResource WHair}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource WHair}"/>
       <Setter Property="Padding" Value="16,13"/>
     </Style>
   </Window.Styles>
 
   <Panel>
-    <Border Classes="glow" Background="{StaticResource WGlow}" VerticalAlignment="Top" Height="230"/>
+    <Border Classes="glow" Background="{DynamicResource WGlow}" VerticalAlignment="Top" Height="230"/>
     <DockPanel LastChildFill="True">
 
     <Border Classes="footer" DockPanel.Dock="Bottom">
@@ -101,14 +82,14 @@
       <StackPanel Spacing="9" HorizontalAlignment="Center">
         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
           <TextBlock Text="DashFile" FontSize="21" FontWeight="Bold"
-                     Foreground="{StaticResource WText}" LetterSpacing="0.4"/>
+                     Foreground="{DynamicResource WText}" LetterSpacing="0.4"/>
           <Border Classes="verpill">
             <TextBlock x:Name="VerText" Text=""/>
           </Border>
         </StackPanel>
         <TextBlock Text="手机无需任何APP：开了调试，插线即用！"
                    HorizontalAlignment="Center" FontSize="13.2"
-                   Foreground="{StaticResource WSub}"/>
+                   Foreground="{DynamicResource WSub}"/>
       </StackPanel>
 
       <Border Classes="card" Margin="0,4,0,0">
@@ -139,10 +120,10 @@
       <Border Classes="note">
         <StackPanel Spacing="7">
           <TextBlock TextWrapping="Wrap" FontSize="12.8" LineHeight="21"
-                     Foreground="{StaticResource WMuted}"
+                     Foreground="{DynamicResource WMuted}"
                      Text="工具不联网、不上传、不收集任何东西(不会像嘎啦嘛一样偷偷把你开源)；浏览操作严格只读，退出时会清掉临时文件。"/>
           <TextBlock TextWrapping="Wrap" FontSize="12.8" LineHeight="21"
-                     Foreground="{StaticResource WBlue}"
+                     Foreground="{DynamicResource WBlue}"
                      Text="QQ群:861078054，欢迎来玩哦。"/>
         </StackPanel>
       </Border>

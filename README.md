@@ -7,7 +7,7 @@
   <a href="#构建"><img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt="dotnet"></a>
   <a href="#技术栈"><img src="https://img.shields.io/badge/Avalonia-11.3-8B44AC" alt="avalonia"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="license"></a>
-  <a href="https://github.com/Eternal-Dash/Dashfile_Manager/releases"><img src="https://img.shields.io/badge/release-v1.0.0-brightgreen" alt="release"></a>
+  <a href="https://github.com/Eternal-Dash/Dashfile_Manager/releases"><img src="https://img.shields.io/badge/release-v1.1.0-brightgreen" alt="release"></a>
 </p>
 
 <br/>
@@ -153,6 +153,7 @@
 
 | 插件 | 一句话 |
 |:--|:--|
+| **Fastboot 刷写** | 分区镜像刷写、Fastboot / ADB Root 回读、固件包预览与批量备份；先预览、双确认、全程日志，可中途停止 |
 | **AVB 工作台** | AVB 解析 / 重签 / VBMeta 构建，输出与 `avbtool 1.3.0` 逐字节一致 |
 | **Hello 示例插件** | 二次开发模板：一个页面 + 三个动作 |
 
@@ -191,9 +192,13 @@
 
 > 改完立即生效，偏好存在本机。
 
-- **外观** — 主题色、界面风格
-- **强调色** — 跟随系统
+- **深浅外观** — 深色 · 经典 / 浅色 · 雾白微透，一键切换
+- **材质** — 浅色下可开系统云母（Mica，需 Windows 11 22H2+）；不支持时自动回退实色
+- **外观** — 主题色、界面风格（标准 / MIUI），强调色可跟随系统
 - **窗口** — 记住上次尺寸；最大化或贴满屏幕的值不会被当成默认
+
+浅色不是把深色反相：窗口栏约 41%、卡片约 85%、文件内容面约 93% 三级白，配合原生 Mica 底层与主题色渐变。
+强调色用 HSL 保留色相与饱和度再压亮度，七种预设各自可辨；切回深色时所有画刷资源会重置，不残留浅色文字。
 
 <p align="center">
   <img src="docs/images/settings.png" width="940" alt="设置"/>

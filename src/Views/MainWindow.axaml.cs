@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -64,6 +64,7 @@ public partial class MainWindow : Window
                 //   切回文件页后必须重新量一次，否则"当前目录"那块高亮会消失。
                 RequestTreePill();
                 break;
+            case nameof(MainViewModel.NavigationPages): RebuildPluginNavigation(); break;
             case nameof(MainViewModel.AppMode): UpdateModePill(); break;
             case nameof(MainViewModel.CurrentPath): AnimateFileList(); break;
         }
@@ -82,9 +83,32 @@ public partial class MainWindow : Window
         Closed -= OnClosedUnsubscribe;
     }
 
+    private void RebuildPluginNavigation()
+    {
+        if (DataContext is not MainViewModel vm) return;
+        var tabs = this.FindControl<DashFile.PluginApi.Controls.SegmentedTabs>("MainTabs");
+        if (tabs == null) return;
+        // Restore selection through the stable VM mapping after the buttons change.
+        foreach (var old in tabs.Children.OfType<Button>().Where(b => b.Tag is PluginPageInfo).ToArray()) tabs.Children.Remove(old);
+        var settings = tabs.Children.OfType<Button>().Last();
+        foreach (var page in vm.NavigationPages)
+        {
+            var button = new Button { Content = page.Title, Tag = page };
+            button.Classes.Add("seg"); button.Classes.Add("tabbtn");
+            tabs.Children.Insert(tabs.Children.IndexOf(settings), button);
+        }
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => tabs.SelectedIndex = vm.NavigationIndex, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ActualTransparencyLevelProperty)
+                AppLog.Add($"Window material: {ActualTransparencyLevel}");
+        };
+        Opened += (_, _) => AppLog.Add($"Window material: {ActualTransparencyLevel}");
         Opened += async (_, _) =>
         {
             if (DataContext is MainViewModel vm)
@@ -96,6 +120,7 @@ public partial class MainWindow : Window
                 vm.PropertyChanged += _vmPropertyHandler;
                 Closed += OnClosedUnsubscribe;
 
+                RebuildPluginNavigation();
                 MainViewModel.Perf("UI opened");
                 await vm.InitializeAsync();
                 MainViewModel.Perf("UI initialized");
@@ -726,6 +751,12 @@ public partial class MainWindow : Window
         // e.Cancel=true —— 窗口永远关不掉，界面还停在 IsEnabled=false 的遮罩上，
         // 用户看到的就是"无限期清理文件"。
         if (_cleanupDone) return;
+        if (Vm?.HasActivePluginOperations == true)
+        {
+            e.Cancel = true;
+            Vm.StatusText = "分区任务尚未结束，请在插件内停止后续任务，等待当前操作完成再关闭。";
+            return;
+        }
 
         // 保存窗口尺寸：只在"普通窗口"状态、且没贴满工作区时保存。
         // 否则最大化的 Bounds 会被存成默认尺寸，下次启动直接铺满屏幕。

@@ -9,32 +9,35 @@
         MinWidth="960" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True"
-        Background="{DynamicResource Bg}"
+        Background="{DynamicResource WindowBackdrop}"
+        TransparencyLevelHint="{DynamicResource WindowMaterialLevels}"
+        TransparencyBackgroundFallback="{DynamicResource Bg}"
         FontFamily="Microsoft YaHei UI, Segoe UI">
 
   <Window.Resources>
     <ctl:FileIcon x:Key="FileIconConv"/>
-    <StreamGeometry x:Key="IcoDevice">M5,1.6 h6 v12.8 h-6 z M7,12.8 h2</StreamGeometry>
+    <StreamGeometry x:Key="IcoDevice">M5.5,1.5 h5 a1,1 0 0 1 1,1 v11 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-11 a1,1 0 0 1 1,-1 z M7,12 h2</StreamGeometry>
     <StreamGeometry x:Key="IcoStatus">M3,8.4 l3.2,3.2 L13,5</StreamGeometry>
-    <StreamGeometry x:Key="IcoLink">M6,2.5 v3 M10,2.5 v3 M4.5,5.5 h7 v2.2 h-7 z M8,11 v3</StreamGeometry>
+    <StreamGeometry x:Key="IcoLink">M6,1.5 v3 M10,1.5 v3 M4.5,4.5 h7 v2.5 a3.5,3.5 0 0 1 -7,0 z M8,10.5 v4</StreamGeometry>
     <StreamGeometry x:Key="IcoSerial">M3,3 v10 M5,3 v10 M7,3 v10 M9.5,3 v10 M12,3 v10</StreamGeometry>
     <StreamGeometry x:Key="IcoTag">M2.5,7 l5,-4.5 h5 v5 l-4.5,5 z</StreamGeometry>
-    <StreamGeometry x:Key="IcoChip">M5,5 h6 v6 h-6 z M3,6.5 h2 M3,9.5 h2 M11,6.5 h2 M11,9.5 h2 M6,3 v2 M9,3 v2 M6,11 v2 M9,11 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoChip">M5,4 h6 a1,1 0 0 1 1,1 v6 a1,1 0 0 1 -1,1 h-6 a1,1 0 0 1 -1,-1 v-6 a1,1 0 0 1 1,-1 z M6.5,6.5 h3 v3 h-3 z M6,1.5 v2.5 M10,1.5 v2.5 M6,12 v2.5 M10,12 v2.5 M1.5,6 h2.5 M1.5,10 h2.5 M12,6 h2.5 M12,10 h2.5</StreamGeometry>
     <StreamGeometry x:Key="IcoAndroid">M5,7 h6 v5 h-6 z M6,4 v2 M10,4 v2 M4,8 v3 M12,8 v3</StreamGeometry>
-    <StreamGeometry x:Key="IcoLock">M4.5,7 h7 v6.2 h-7 z M6,7 v-2 h4 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoLock">M4.5,7 h7 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-7 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z M5.5,7 v-2.5 a2.5,2.5 0 0 1 5,0 v2.5 M8,10 v1.5</StreamGeometry>
     <StreamGeometry x:Key="IcoBox">M3,5 l5,-2.5 l5,2.5 v6 l-5,2.5 l-5,-2.5 z M3,5 l5,2.5 l5,-2.5 M8,7.5 v6</StreamGeometry>
-    <StreamGeometry x:Key="IcoCalendar">M3,4.5 h10 v9 h-10 z M3,7.5 h10 M6,2.5 v3 M10,2.5 v3</StreamGeometry>
+    <StreamGeometry x:Key="IcoCalendar">M3,3.5 h10 a1,1 0 0 1 1,1 v9 a1,1 0 0 1 -1,1 h-10 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z M5,1.5 v4 M11,1.5 v4 M2,7 h12 M5,10 h1 M9,10 h1</StreamGeometry>
     <StreamGeometry x:Key="IcoLayers">M8,2.2 l6,3 l-6,3 l-6,-3 z M2,8 l6,3 l6,-3 M2,11 l6,3 l6,-3</StreamGeometry>
-    <StreamGeometry x:Key="IcoOs">M2.5,3.6 h11 v8.8 h-11 z M2.5,6.6 h11</StreamGeometry>
+    <StreamGeometry x:Key="IcoOs">M2.5,2.5 h11 a1,1 0 0 1 1,1 v9 a1,1 0 0 1 -1,1 h-11 a1,1 0 0 1 -1,-1 v-9 a1,1 0 0 1 1,-1 z M1.5,6 h13 M5,3.8 h0.2</StreamGeometry>
+    <StreamGeometry x:Key="IcoPower">M8,1.5 v5 M4,3.5 a5.5,5.5 0 1 0 8,0</StreamGeometry>
     <StreamGeometry x:Key="IcoShield">M8,2 l5,2.5 v3.4 l-5,6.1 l-5,-6.1 v-3.4 z M5.6,8 l2,2 l3.6,-3.6</StreamGeometry>
-    <StreamGeometry x:Key="IcoRam">M3,5.4 h10 v5.2 h-10 z M5,5.4 v-2 M8,5.4 v-2 M11,5.4 v-2 M5,10.6 v2 M8,10.6 v2 M11,10.6 v2</StreamGeometry>
-    <StreamGeometry x:Key="IcoDisk">M2.5,5 h11 v6 h-11 z M4,8 h2.5</StreamGeometry>
-    <StreamGeometry x:Key="IcoBattery">M3,5.6 h8.4 v4.8 h-8.4 z M11.4,7.1 h2 v1.8 h-2 z M4.8,7 v2</StreamGeometry>
-    <StreamGeometry x:Key="IcoScreen">M2,3.8 h12 v8.4 h-12 z M5,14 h6</StreamGeometry>
+    <StreamGeometry x:Key="IcoRam">M2.5,4 h11 v7 h-11 z M5,6 h2 v3 h-2 z M9,6 h2 v3 h-2 z M4,11 v2 M7,11 v2 M10,11 v2 M13,11 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoDisk">M3,2.5 h10 l1.5,7 v3 a1,1 0 0 1 -1,1 h-11 a1,1 0 0 1 -1,-1 v-3 z M1.5,9.5 h13 M10.5,11.5 h1</StreamGeometry>
+    <StreamGeometry x:Key="IcoBattery">M2.5,4.5 h9 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-9 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z M14,6.5 v3 M4,7 v2 M6.5,7 v2</StreamGeometry>
+    <StreamGeometry x:Key="IcoScreen">M2.5,2.5 h11 a1,1 0 0 1 1,1 v7 a1,1 0 0 1 -1,1 h-11 a1,1 0 0 1 -1,-1 v-7 a1,1 0 0 1 1,-1 z M8,11.5 v3 M5,14.5 h6</StreamGeometry>
     <StreamGeometry x:Key="IcoCores">M4,4 h3 v3 h-3 z M9,4 h3 v3 h-3 z M4,9 h3 v3 h-3 z M9,9 h3 v3 h-3 z</StreamGeometry>
     <StreamGeometry x:Key="IcoPin">M9.5,2.2 a1.4,1.4 0 1,1 -2.8,0 a1.4,1.4 0 1,1 2.8,0 M8.1,3.6 v4.2 l1.6,2.2 h-4.4 l1.6,-2.2 z M8.1,10 v3.6</StreamGeometry>
-    <StreamGeometry x:Key="IcoFolder">M2,4.2 h4.1 l1.4,1.6 h6.5 v7.4 h-12 z</StreamGeometry>
-    <StreamGeometry x:Key="IcoPuzzle">M3,4.5 h3.4 v2 h2 v-2 h3.4 v3.4 h2 v2 h-2 v3.4 h-3.4 v-2 h-2 v2 h-3.4 z</StreamGeometry>
+    <StreamGeometry x:Key="IcoFolder">M2.5,3.5 h3.6 l1.5,2 h5.9 a1,1 0 0 1 1,1 v6 a1,1 0 0 1 -1,1 h-11 a1,1 0 0 1 -1,-1 v-8 a1,1 0 0 1 1,-1 z</StreamGeometry>
+    <StreamGeometry x:Key="IcoPuzzle">M2,3.5 h4 v-1 a2,2 0 0 1 4,0 v1 h3.5 v4 h-1 a1.5,1.5 0 0 0 0,3 h1 v3 h-4 v-1 a1.5,1.5 0 0 0 -3,0 v1 h-4.5 z</StreamGeometry>
   </Window.Resources>
 
   <Panel>
@@ -69,7 +72,7 @@
                   IsVisible="{Binding IsInstalling}" Margin="0,0,4,0"
                   ToolTip.Tip="中止正在进行的 APK 安装"/>
           <Path Data="{StaticResource IcoBattery}" IsVisible="{Binding IsDeviceTab}"
-                Stroke="{DynamicResource TextSub}" StrokeThickness="1.25" Width="15" Height="15"
+                Stroke="{DynamicResource TextSub}" StrokeThickness="1.4" Width="15" Height="15"
                 Stretch="Uniform" VerticalAlignment="Center"/>
           <TextBlock Classes="value" Text="{Binding RightStatusText}" MaxWidth="360"
                      TextTrimming="CharacterEllipsis"/>
@@ -82,7 +85,7 @@
       <StackPanel Orientation="Horizontal" Spacing="12">
         <!-- 主标签：滑动指示器 + 切换动画由 SegmentedTabs 统一提供（和插件子页共用同一份实现） -->
         <Border Classes="seg">
-          <papi:SegmentedTabs x:Name="MainTabs" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+          <papi:SegmentedTabs x:Name="MainTabs" SelectedIndex="{Binding NavigationIndex, Mode=TwoWay}">
             <Button Classes="seg tabbtn" Content="设备信息" Command="{Binding ShowDeviceTabCommand}"/>
             <Button Classes="seg tabbtn" Content="文件管理" Command="{Binding ShowFileTabCommand}"/>
             <Button Classes="seg tabbtn" Content="模块管理" Command="{Binding ShowModulesTabCommand}"/>
@@ -126,7 +129,7 @@
             <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
               <UniformGrid Grid.Column="0" Rows="11" Columns="1">
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoStatus}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoStatus}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="设备状态" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -134,7 +137,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoLink}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoLink}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="连接类型" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -142,7 +145,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoSerial}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoSerial}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="设备序列号" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -150,7 +153,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoDevice}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoDevice}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="设备名称" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -158,7 +161,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoTag}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoTag}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="设备代号" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -166,7 +169,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoAndroid}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoAndroid}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="安卓版本" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -174,7 +177,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoLock}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoLock}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="解锁状态" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -182,7 +185,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoBox}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoBox}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="版本信息" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -190,7 +193,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="内核版本" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -198,7 +201,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoCalendar}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoCalendar}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="构建日期" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -206,7 +209,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="A/B 分区" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -217,7 +220,7 @@
               <Border Grid.Column="1" Width="1" Background="{DynamicResource StrokeSoft}" Margin="0,6"/>
               <UniformGrid Grid.Column="2" Rows="11" Columns="1">
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="CPU 厂家" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -225,7 +228,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="CPU 型号" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -233,7 +236,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="CPU 名称" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -241,7 +244,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoOs}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoOs}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="操作系统" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -249,7 +252,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="SELinux" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -257,7 +260,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoRam}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoRam}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="内存" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -265,7 +268,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoDisk}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoDisk}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="存储（/data）" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -273,7 +276,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoBattery}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoBattery}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="电池" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -281,7 +284,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoScreen}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoScreen}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="屏幕分辨率" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -289,7 +292,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontFamily="Consolas, Cascadia Mono, monospace"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoCores}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="CPU 核心" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -297,7 +300,7 @@
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="22,92,*">
-                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.3"
+                      <Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                             Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="系统架构" FontSize="14" Foreground="{DynamicResource TextMuted}"
                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -319,7 +322,7 @@
                 </Border>
               </Grid>
               <UniformGrid Grid.Row="1" Columns="5">
-                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootSystemCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoOs}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="System" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
+                <Button Classes="reboot" Margin="5,0" Command="{Binding RebootSystemCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoPower}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="System" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
                 <Button Classes="reboot" Margin="5,0" Command="{Binding RebootBootloaderCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoChip}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Fastboot" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
                 <Button Classes="reboot" Margin="5,0" Command="{Binding RebootFastbootdCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoLayers}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Fastbootd" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
                 <Button Classes="reboot" Margin="5,0" Command="{Binding RebootRecoveryCommand}"><StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource IcoShield}" Stroke="{DynamicResource TextMain}" StrokeThickness="1.4" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center"/><TextBlock Text="Recovery" FontSize="15" Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/></StackPanel></Button>
@@ -399,7 +402,7 @@
               </Grid>
               <Border Grid.Row="1" Background="{DynamicResource ChartBg}" BorderBrush="{DynamicResource StrokeSoft}"
                       BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}" Padding="6,4" ClipToBounds="True">
-                <ctl:SparkLine Values="{Binding CpuPoints}" LineBrush="{DynamicResource Accent}" FillBrush="{DynamicResource AccentFill}"
+                <ctl:SparkLine GridBrush="{DynamicResource ChartGrid}" Values="{Binding CpuPoints}" LineBrush="{DynamicResource Accent}" FillBrush="{DynamicResource AccentFill}"
                                MinHeight="46"/>
               </Border>
               <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
@@ -416,7 +419,7 @@
       </Grid>
     </Grid>
 
-    <DockPanel x:Name="FilePage" IsVisible="{Binding IsFileTab}" LastChildFill="True"
+    <DockPanel Background="{DynamicResource ContentSurface}" x:Name="FilePage" IsVisible="{Binding IsFileTab}" LastChildFill="True"
                DragDrop.AllowDrop="True" DragDrop.DragOver="OnPageDragOver"
                DragDrop.Drop="OnPageDrop" DragDrop.DragLeave="OnPageDragLeave">
 
@@ -582,7 +585,7 @@
                         </Button>
                         <Path Grid.Column="1" Data="{StaticResource IcoFolder}" Width="15" Height="15"
                               Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"
-                              Stroke="{DynamicResource TextMuted}" StrokeThickness="1.25"
+                              Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                               Fill="{DynamicResource AccentFill}"/>
                         <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="13"
                                    Margin="4,0,6,0"
@@ -731,7 +734,7 @@
                     BoxShadow="0 6 20 0 #66000000" IsHitTestVisible="False">
               <StackPanel Orientation="Horizontal" Spacing="12">
                 <Path Data="{StaticResource IcoFolder}" Width="16" Height="16" Stretch="Uniform"
-                      VerticalAlignment="Center" Stroke="{DynamicResource AccentText}" StrokeThickness="1.3"
+                      VerticalAlignment="Center" Stroke="{DynamicResource AccentText}" StrokeThickness="1.4"
                       Fill="{DynamicResource AccentFill}"/>
                 <TextBlock Text="松开：上传到当前目录" Foreground="{DynamicResource AccentText}"
                            FontSize="13.5" VerticalAlignment="Center"/>
@@ -815,7 +818,7 @@
                     <TextBlock Text="{Binding SubLine}" Classes="sub"/>
                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="13.5"
                                Foreground="{DynamicResource TextSub}"/>
-                    <Border Height="1" Background="{DynamicResource StrokeSoft}" Margin="0,3,0,1" Opacity="0.6"/>
+                    <Border Height="1" Background="{DynamicResource StrokeSoft}" Margin="0,3,0,1" Opacity="{DynamicResource SectionRuleOpacity}"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
                       <Button Classes="tool pri" Content="提取模块" Click="OnModuleExtract" ToolTip.Tip="把该模块重新打包成 zip 保存到电脑"/>
                       <Button Classes="tool" Content="执行 action.sh" Click="OnModuleAction"
@@ -971,7 +974,7 @@
         <StackPanel Spacing="3" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Path Data="{StaticResource IcoPuzzle}" Width="18" Height="18" Stretch="Uniform"
-                  Stroke="{DynamicResource Accent}" StrokeThickness="1.3" VerticalAlignment="Center"/>
+                  Stroke="{DynamicResource Accent}" StrokeThickness="1.4" VerticalAlignment="Center"/>
             <TextBlock Text="插件" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
           </StackPanel>
@@ -1162,7 +1165,7 @@
 
       <!-- 拖入 .dfp 的落点提示 -->
       <Border x:Name="PluginDropHint" Grid.RowSpan="2" IsVisible="False"
-              Background="#E614121C" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1"
+              Background="{DynamicResource PluginDropBg}" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1"
               CornerRadius="{DynamicResource RadiusCard}" IsHitTestVisible="False">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
           <Path Data="{StaticResource IcoPuzzle}" Width="38" Height="38" Stretch="Uniform"
@@ -1174,6 +1177,8 @@
         </StackPanel>
       </Border>
     </Grid>
+
+    <ContentControl IsVisible="{Binding IsNavigationTab}" Content="{Binding NavigationPageView}" Margin="16,12"/>
 
     <!-- ================= 设置页 ================= -->
     <Grid x:Name="SetPage" IsVisible="{Binding IsSettingsTab}" Margin="16,12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
@@ -1191,10 +1196,23 @@
           <StackPanel Spacing="14">
             <StackPanel Spacing="2">
               <TextBlock Text="外观" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
-              <TextBlock Text="主题色与界面风格，点一下立即生效" FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
+              <TextBlock Text="深浅外观与主题色，点一下立即生效" FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
             </StackPanel>
 
             <StackPanel Spacing="8">
+              <ToggleSwitch IsChecked="{Binding IsLightMode, Mode=TwoWay}"
+                            OnContent="浅色 · 雾白微透" OffContent="深色 · 经典"
+                            Foreground="{DynamicResource TextMain}"/>
+              <TextBlock Text="主题色染色 · 云母底层 · 清晰内容表面" FontSize="12"
+                         Foreground="{DynamicResource TextMuted}"/>
+              <StackPanel Orientation="Horizontal" Spacing="20" IsVisible="{Binding IsLightMode}">
+                <CheckBox Content="浅色材质" IsChecked="{Binding IsMaterialEnabled, Mode=TwoWay}"
+                          Foreground="{DynamicResource TextSub}"
+                          ToolTip.Tip="系统材质；不支持时使用实色，关闭可减少合成开销"/>
+                <CheckBox Content="磨砂玻璃效果" IsChecked="{Binding IsGlassEnabled, Mode=TwoWay}"
+                          IsEnabled="{Binding IsMaterialEnabled}" Foreground="{DynamicResource TextSub}"
+                          ToolTip.Tip="透出窗口后方的磨砂色彩；关闭后恢复云母。此效果会增加合成开销。"/>
+              </StackPanel>
               <TextBlock Text="主题色" FontSize="13" Foreground="{DynamicResource TextSub}"/>
               <ItemsControl ItemsSource="{Binding Themes}">
                 <ItemsControl.ItemsPanel>
@@ -1209,7 +1227,7 @@
                         <Border Width="38" Height="38" CornerRadius="19" Background="{Binding Brush}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Path IsVisible="{Binding IsSelected}" Data="M2,8 L6,12 L14,3"
-                              Stroke="{DynamicResource OnAccent}" StrokeThickness="2.4" Stretch="Uniform" Width="16" Height="16"
+                              Stroke="{DynamicResource SwatchCheck}" StrokeThickness="2.4" Stretch="Uniform" Width="16" Height="16"
                               StrokeLineCap="Round" StrokeJoin="Round"
                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Grid>

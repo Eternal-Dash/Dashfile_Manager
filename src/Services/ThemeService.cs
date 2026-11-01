@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Media;
+using Avalonia.Controls;
 
 namespace DashFile.Services;
 
@@ -11,6 +12,30 @@ namespace DashFile.Services;
 /// </summary>
 public static class ThemeService
 {
+    public static string Appearance { get; private set; } = "dark";
+
+    public static void ApplyAppearance(string appearance, string style, string hex)
+    {
+        Appearance = string.Equals(appearance, "light", StringComparison.OrdinalIgnoreCase) ? "light" : "dark";
+        ApplyStyle(style, hex);
+    }
+
+    public static bool GlassEnabled { get; private set; }
+
+    public static void ApplyGlass(bool enabled, string style, string hex)
+    {
+        GlassEnabled = enabled;
+        ApplyStyle(style, hex);
+    }
+
+    public static bool MaterialEnabled { get; private set; } = true;
+
+    public static void ApplyMaterial(bool enabled, string style, string hex)
+    {
+        MaterialEnabled = enabled;
+        ApplyStyle(style, hex);
+    }
+
     public static string Style { get; private set; } = "m3";
 
     public static void ApplyStyle(string style, string hex)
@@ -25,6 +50,15 @@ public static class ThemeService
         var app = Application.Current;
         if (app == null) return;
         if (!Color.TryParse(hex, out var c)) return;
+
+        app.RequestedThemeVariant = Appearance == "light"
+            ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark;
+        ApplyCommon(app);
+        if (Appearance == "light")
+        {
+            ApplyLight(app, c);
+            return;
+        }
 
         // ---- 强调色（两种风格共用）----
         Set(app, "Accent",      c);
@@ -139,6 +173,120 @@ public static class ThemeService
         SetSystemAccent(app, c);
     }
 
+    // Every mode sets shared tokens too: light -> dark never leaves pale text or overlays behind.
+    private static void ApplyCommon(Application app)
+    {
+        var light = Appearance == "light";
+        app.Resources["SectionRuleOpacity"] = light ? 1d : 0.6d;
+        app.Resources["WindowMaterialLevels"] = light && MaterialEnabled
+            ? (GlassEnabled
+                ? new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Mica, WindowTransparencyLevel.None }
+                : new[] { WindowTransparencyLevel.Mica, WindowTransparencyLevel.None })
+            : new[] { WindowTransparencyLevel.None };
+        foreach (var item in new (string Key, string Dark, string Light)[]
+        {
+            ("TextMain", "#FFFFFF", "#171C25"), ("TextSub", "#DFDFE4", "#344052"),
+            ("TextMuted", "#9FA1AA", "#505C6D"), ("SelBorder", "#F0ECFA", "#536078"),
+            ("DropHint", "#66FFFFFF", "#663B465B"), ("WarnBg", "#33FFB74D", "#FFF0D9"),
+            ("WarnFg", "#FFCC80", "#875000"), ("OverlayMask", "#CC000000", "#66323C50"),
+            ("TrackOff", "#3F3F4D", "#CDD3DD"), ("TrackOffHover", "#4A4A5A", "#BAC3D0"),
+            ("RowHover", "#12FFFFFF", "#0B23334C"), ("FileHover", "#1EFFFFFF", "#1223334C"),
+            ("HoverLayer", "#16FFFFFF", "#0E23334C"), ("PressedLayer", "#20FFFFFF", "#1A23334C"),
+            ("Divider", "#17FFFFFF", "#B5C1CF"), ("Hairline", "#2BFFFFFF", "#B3BFCE"),
+            ("HairlineSoft", "#18FFFFFF", "#C0CAD7"), ("Danger", "#D98080", "#972B36"),
+            ("Ok", "#8FD0AA", "#176139"), ("PluginDropBg", "#E614121C", "#F5F5F8FC"),
+            ("ChartGrid", "#1EFFFFFF", "#18334158"), ("PreviewText", "#7FE3FF", "#006A85"),
+            ("SwatchCheck", "#141019", "#141019"), ("OnAccent", "#141019", "#FFFFFF"), ("OnColor", "#FFFFFF", "#FFFFFF"),
+            ("WCard", "#15161C", "#EFFFFFFF"), ("WCardWarm", "#1A1728", "#F3F0FA"),
+            ("WInset", "#101116", "#EDF1F6"), ("WHair", "#2A2D38", "#D7DFE9"),
+            ("WBlue", "#A8C7FA", "#345F9E"), ("WBlueTint", "#1A2130", "#E6EEF9"),
+            ("WPurple", "#CFBCF7", "#7250A0"), ("WPurpleTint", "#211C2E", "#EEE7F8"),
+            ("WText", "#E8E9ED", "#202632"), ("WSub", "#A2A6B1", "#526077"),
+            ("WMuted", "#7C808B", "#657084")
+        }) Set(app, item.Key, Color.Parse(light ? item.Light : item.Dark));
+        app.Resources["WGlow"] = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops = new GradientStops
+            {
+                new GradientStop(Color.Parse(light ? "#DCE6F3" : "#141824"), 0),
+                new GradientStop(Color.Parse(light ? "#00DCE6F3" : "#00141824"), 1)
+            }
+        };
+    }
+
+    private static void ApplyLight(Application app, Color c)
+    {
+        var mono = c.R > 250 && c.G > 250 && c.B > 250;
+        // Retain the chosen hue and saturation; mixing every pastel with navy made them all grey.
+        var hsl = c.ToHsl();
+        var ink = mono ? Color.Parse("#344052") : HslColor.FromHsl(hsl.H, Math.Clamp(hsl.S, 0.62, 0.82), 0.42).ToRgb();
+        // One-time palette calculation, never in Render. Keep coloured text readable on tinted surfaces.
+        while (Luminance(ink) > 0.105) ink = Blend(ink, Colors.Black, 0.04);
+        var tint = mono ? Color.Parse("#AAB7C8") : c;
+        foreach (var item in new (string Key, string Value)[]
+        {
+            ("Bg", "#E5EAF0"), ("Panel", "#D9EEF2F7"), ("PanelAlt", "#F2FFFFFF"),
+            ("Stroke", "#9EACBE"), ("StrokeSoft", "#C5CEDA"), ("StrokeStrong", "#778AA3"),
+            ("Hover", "#E1E8F1"), ("Pressed", "#D3DEEB"), ("ChipBg", "#E7EDF4"),
+            ("ChipBorder", "#BAC6D5"), ("TrackBg", "#D6DFEB"), ("ChartBg", "#EBF0F6"),
+            ("KnobFill", "#FFFFFF")
+        }) Set(app, item.Key, Color.Parse(item.Value));
+        Set(app, "Bg", Blend(tint, Color.Parse("#E5EAF1"), mono ? 0.97 : 0.92));
+        Set(app, "ContentSurface", Color.Parse("#FFFDFEFF"));
+        Set(app, "Accent", ink);
+        Set(app, "AccentText", ink);
+        Set(app, "AccentSoft", Blend(ink, Colors.White, 0.25));
+        Set(app, "AccentBg", Blend(tint, Colors.White, 0.58));
+        Set(app, "AccentHover", Blend(tint, Colors.White, 0.42));
+        Set(app, "AccentDeep", Blend(ink, Colors.White, 0.65));
+        Set(app, "AccentFill", Color.FromArgb(48, ink.R, ink.G, ink.B));
+        Set(app, "SelBg", Blend(tint, Colors.White, 0.48));
+        Set(app, "CardSel", Blend(tint, Colors.White, 0.38));
+        Set(app, "SelBorder", Blend(ink, Colors.White, 0.35));
+        Set(app, "BtnPriBg", ink);
+        Set(app, "BtnPriFg", Colors.White);
+        Set(app, "BtnPriHover", Blend(ink, Colors.Black, 0.12));
+        app.Resources["RadiusCard"] = new CornerRadius(Style == "miui" ? 20 : 12);
+        app.Resources["RadiusCtl"] = new CornerRadius(Style == "miui" ? 12 : 6);
+        app.Resources["RadiusPill"] = new CornerRadius(Style == "miui" ? 999 : 11);
+        app.Resources["RowH"] = Style == "miui" ? 38d : 34d;
+        app.Resources["TreeRowH"] = Style == "miui" ? 30d : 26d;
+        SetGhost(app, "SelGhost", "SelBg");
+        SetSystemAccent(app, ink);
+        if (MaterialEnabled && GlassEnabled)
+        {
+            // A single native background effect, never a blur per card or list item.
+            Set(app, "TextMuted", Color.Parse("#344052"));
+            Set(app, "TextSub", Color.Parse("#273244"));
+            Set(app, "Panel", Color.Parse("#AEE8EEF5"));
+            Set(app, "PanelAlt", Color.Parse("#D9FFFFFF"));
+            Set(app, "Hairline", Color.Parse("#AEBCCD"));
+            Set(app, "HairlineSoft", Color.Parse("#BDC9D8"));
+        }
+        // Explicit surface roles: controls/popups are stable, opaque reading surfaces.
+        Set(app, "ControlFill", Colors.White);
+        Set(app, "PopupSurface", Colors.White);
+        Set(app, "KeyBg", Color.Parse("#E7EDF4"));
+        Set(app, "KeyBorder", Color.Parse("#BAC6D5"));
+        Set(app, "KeyFg", Color.Parse("#344052"));
+        // Native Mica underneath a restrained colour wash. No nested blur or animated grain.
+        // A light tint floor prevents dark windows behind Acrylic from swallowing text.
+        var glassTint = Blend(tint, Colors.White, 0.84);
+        app.Resources["WindowBackdrop"] = MaterialEnabled ? new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+            GradientStops = new GradientStops
+            {
+                new GradientStop(GlassEnabled ? Color.FromArgb(184, glassTint.R, glassTint.G, glassTint.B) : Color.FromArgb(56, tint.R, tint.G, tint.B), 0),
+                new GradientStop(Color.FromArgb(GlassEnabled ? (byte)192 : (byte)18, 255, 255, 255), 0.48),
+                new GradientStop(GlassEnabled ? Color.FromArgb(184, glassTint.R, glassTint.G, glassTint.B) : Color.FromArgb(56, tint.R, tint.G, tint.B), 1)
+            }
+        } : app.Resources["Bg"]!;
+    }
+
     /// <summary>让 Fluent 自带的控件（下拉、焦点框、选中）也用主题色，避免残留系统蓝</summary>
     private static void SetSystemAccent(Application app, Color c)
     {
@@ -156,7 +304,33 @@ public static class ThemeService
     }
 
     private static void Set(Application app, string key, Color c)
-        => app.Resources[key] = new SolidColorBrush(c);
+    {
+        app.Resources[key] = new SolidColorBrush(c);
+        // Aliases preserve the original dark appearance; light assigns its own surface roles.
+        if (key == "PanelAlt")
+        {
+            app.Resources["ControlFill"] = app.Resources[key];
+            app.Resources["PopupSurface"] = app.Resources[key];
+        }
+        if (key == "AccentBg") app.Resources["KeyBg"] = app.Resources[key];
+        if (key == "AccentDeep") app.Resources["KeyBorder"] = app.Resources[key];
+        if (key == "TextMain") app.Resources["KeyFg"] = app.Resources[key];
+        if (key == "Bg")
+        {
+            app.Resources["WindowBackdrop"] = app.Resources[key];
+            app.Resources["ContentSurface"] = Appearance == "light" ? new SolidColorBrush(Color.Parse("#EDF9FBFF")) : Brushes.Transparent;
+        }
+    }
+
+    private static double Luminance(Color c)
+    {
+        static double Linear(byte value)
+        {
+            var v = value / 255d;
+            return v <= 0.04045 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Linear(c.R) + 0.7152 * Linear(c.G) + 0.0722 * Linear(c.B);
+    }
 
     /// <summary>
     /// 把某个 SolidColorBrush 复制成 alpha=0 的同色“幽灵”。

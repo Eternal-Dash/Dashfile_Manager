@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -8,10 +8,10 @@
     <RootNamespace>DashFile.PluginApi</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <!-- 插件 API 必须保持稳定：这里的版本号和 PluginApiInfo.Version 一起递增 -->
-    <Version>1.0.0</Version>
+    <!-- API 能力号用于宿主功能门槛；保持 AssemblyVersion 以兼容现有插件二进制 -->
+    <Version>1.1.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <FileVersion>1.1.0.0</FileVersion>
     <Authors>恒定破折号 (EternalDash)</Authors>
     <Product>DashFile</Product>
     <Copyright>Copyright (C) 2026 恒定破折号 (EternalDash)</Copyright>

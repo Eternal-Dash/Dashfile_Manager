@@ -1,7 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="DashFile.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Light">
 
   <Application.Resources>
     <!-- 底色：整体略微提亮，避免纯黑压字 -->
@@ -78,6 +78,11 @@
   <Application.Styles>
     <FluentTheme />
 
+    <Style Selector="Path">
+      <Setter Property="StrokeLineCap" Value="Round"/>
+      <Setter Property="StrokeJoin" Value="Round"/>
+    </Style>
+
     <Style Selector="Window">
       <Setter Property="Background" Value="{DynamicResource Bg}"/>
       <Setter Property="FontFamily" Value="Microsoft YaHei UI, Segoe UI"/>
@@ -152,14 +157,14 @@
     <!-- 主操作按钮：暗底强调色 + 亮描边；悬停只提亮描边和文字，
          不再把整块背景提亮（避免和"选中高亮"抢亮度） -->
     <Style Selector="Button.pri">
-      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
-      <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+      <Setter Property="Background" Value="{DynamicResource BtnPriBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource BtnPriFg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
     </Style>
     <Style Selector="Button.pri:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+      <Setter Property="Background" Value="{DynamicResource BtnPriHover}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource BtnPriFg}"/>
     </Style>
 
     <Style Selector="Button.icon">
@@ -213,7 +218,7 @@
     </Style>
 
     <Style Selector="ComboBox.dev">
-      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Background" Value="{DynamicResource ControlFill}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
       <Setter Property="MinHeight" Value="34"/>
@@ -443,15 +448,15 @@
     </Style>
 
     <Style Selector="Border.kbd">
-      <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentDeep}"/>
+      <Setter Property="Background" Value="{DynamicResource KeyBg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource KeyBorder}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
       <Setter Property="Padding" Value="9,3"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
     <Style Selector="Border.kbd > TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+      <Setter Property="Foreground" Value="{DynamicResource KeyFg}"/>
     </Style>
 
     <!-- 目录树：展开箭头 -->
@@ -804,7 +809,7 @@
     </Style>
 
     <Style Selector="TextBox">
-      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Background" Value="{DynamicResource ControlFill}"/>
       <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
       <Setter Property="BorderThickness" Value="1"/>
@@ -833,7 +838,7 @@
     </Style>
 
     <Style Selector="ContextMenu">
-      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Background" Value="{DynamicResource PopupSurface}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
@@ -845,7 +850,7 @@
     </Style>
 
     <Style Selector="ToolTip">
-      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="Background" Value="{DynamicResource PopupSurface}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource Stroke}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/>
