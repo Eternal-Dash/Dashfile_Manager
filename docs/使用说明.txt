@@ -71,3 +71,6 @@ System / Fastboot / Fastbootd / Recovery / 9008(EDL)
 双轨快传插件启用后，设备文件上传/下载默认优先使用 USB + 可达 Wi-Fi。手机与电脑需在同一局域网；仅 USB 可达时真实显示单通道。插件页可检测通道、取消或关闭接管。原项目 HybridFileXfer / 原作者 weixiansen574，GPL-3.0-or-later，DashFile 适配说明见插件 UPSTREAM.md。
 分区页提示“不支持 fetch”时需自行切至具备 Root 的 Android/Recovery 使用 ADB 回读。快传插件不能让不支持 fetch 的 Bootloader 获得分区回读能力。
 拖动文件按 Escape 可取消；拖到桌面空白处或资源管理器文件夹导出，其他外部落点取消。
+
+【双轨快传 1.0.1 大小分流】
+默认单文件达到 1 GB（1024 MB）时才使用双轨，低于阈值使用普通 ADB。插件详情页可设置 MB/GB，按 1 MB 微调，跨重启保存；切单位不会改变实际大小。目录逐文件判断，导出压缩包按包大小判断。设置从下一次文件传输生效；手动检测通道不受阈值限制。

@@ -9,6 +9,8 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
     private AgentContext? _context;
     private string _key="";
     private int _active;
+    private long _thresholdBytes=TransferThreshold.DefaultBytes;
+    public long ThresholdBytes { get=>Interlocked.Read(ref _thresholdBytes); set=>Interlocked.Exchange(ref _thresholdBytes,TransferThreshold.Normalize(value)); }
     public string DisplayName => "双轨快传";
     public bool IsEnabled {get;set;}=true;
     public bool Wifi {get;set;}=true;
@@ -19,6 +21,7 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
     public Task TransferAsync(PluginTransferRequest request,IProgress<PluginTransferProgress>? progress,CancellationToken ct)
     {
         Interlocked.Increment(ref _active);
+        var threshold=ThresholdBytes;
         CancellationToken stop;lock(_stopGate)stop=_stop.Token;
         // The provider owns background I/O; never execute hashing or per-block callbacks on the UI dispatcher.
         return Task.Run(async()=>
@@ -28,6 +31,11 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
             var entered=false;
             try
             {
+                long size;
+                try { size=await TransferThreshold.ReadSizeAsync(request,cancel.Token).ConfigureAwait(false); }
+                catch(Exception ex) when(ex is not OperationCanceledException) { throw new PluginTransferUnavailableException("大小预检未完成，使用普通 ADB 传输："+ex.Message,ex); }
+                if(!TransferThreshold.ShouldUseHybrid(size,threshold))
+                    throw new PluginTransferUnavailableException($"文件小于 {TransferThreshold.Describe(threshold)} 阈值，使用普通 ADB 传输。");
                 await _serial.WaitAsync(cancel.Token).ConfigureAwait(false);entered=true;
                 var session=await Ensure(request,cancel.Token).ConfigureAwait(false);
                 await session.Transfer(request,progress,cancel.Token).ConfigureAwait(false);

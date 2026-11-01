@@ -13,11 +13,11 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
     private IDisposable? _registration;
     public bool IsOperationActive => _provider?.Active == true;
     public string OperationDescription => "双轨文件传输 / 通道检测";
-    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="双轨快传", Version="1.0.0", Author="EternalDash · 原项目 weixiansen574", Description="USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
+    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="双轨快传", Version="1.0.1", Author="EternalDash · 原项目 weixiansen574", Description="按大小选择 USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
         if (Host is not IPluginFileTransferHost transfers) throw new NotSupportedException("双轨快传需要 DashFile 1.2.0 / API 3。");
-        _provider=new HybridProvider(Host.DataDirectory,Host.Log.Info) { IsEnabled=Host.Settings.Get("enabled",true), Wifi=Host.Settings.Get("wifi",true), MaxRails=3 };
+        _provider=new HybridProvider(Host.DataDirectory,Host.Log.Info) { IsEnabled=Host.Settings.Get("enabled",true), Wifi=Host.Settings.Get("wifi",true), MaxRails=3, ThresholdBytes=Host.Settings.Get("thresholdBytes",TransferThreshold.DefaultBytes) };
         _registration=transfers.RegisterFileTransferProvider(_provider);
         Host.AddPage(new PluginPage { Id="hybrid-transfer",Title="双轨快传",Description="USB + Wi-Fi · 完整性校验",Icon="⇄",CreateViewAsync=(_,_)=>Task.FromResult<Control>(CreatePage(transfers)) });
         return Task.CompletedTask;
@@ -28,9 +28,47 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
         TextBlock Text(string text,int size=14)=>new(){Text=text,FontSize=size,TextWrapping=TextWrapping.Wrap};
         var content=new StackPanel { Spacing=18, Margin=new Thickness(24),MaxWidth=880,HorizontalAlignment=HorizontalAlignment.Stretch };
         var title=Text("让 USB 与 Wi-Fi 一起传",24);title.FontWeight=FontWeight.SemiBold;content.Children.Add(title);
-        content.Children.Add(Text("安装并启用后，设备文件的上传、下载及拖出导出会优先使用此插件。无需安装手机 APK；首次传输会启动临时服务。"));
-        var enabled=new CheckBox { Content="默认接管设备文件上传与下载",IsChecked=provider.IsEnabled };
+        content.Children.Add(Text("按单个文件的大小自动选择传输方式。达到阈值时使用双轨快传，小文件使用普通 ADB，减少准备开销。无需安装手机 APK。"));
+        var enabled=new CheckBox { Content="按大小自动选择双轨快传",IsChecked=provider.IsEnabled };
         enabled.IsCheckedChanged+=(_,_)=>{provider.IsEnabled=enabled.IsChecked==true;Host.Settings.Set("enabled",provider.IsEnabled);Host.Settings.Save();};content.Children.Add(enabled);
+        content.Children.Add(Text("双轨快传触发阈值",16));
+        var editor=new StackPanel { Orientation=Orientation.Horizontal,Spacing=12 };
+        var useGb=provider.ThresholdBytes%TransferThreshold.Gigabyte==0;
+        var size=new NumericUpDown { Width=180,Minimum=1,Maximum=1048576,Value=1024,Increment=1,FormatString="0" };
+        var unit=new ComboBox { Width=85,ItemsSource=new[]{"MB","GB"},SelectedIndex=useGb?1:0 };
+        var reset=new Button { Content="恢复 1 GB" };reset.Classes.Add("tool");
+        var hint=Text("");var updating=false;
+        void RefreshEditor()
+        {
+            updating=true;
+            try
+            {
+                var divisor=unit.SelectedIndex==1?TransferThreshold.Gigabyte:TransferThreshold.Megabyte;
+                size.Minimum=(decimal)TransferThreshold.Megabyte/divisor;
+                size.Maximum=(decimal)TransferThreshold.MaximumBytes/divisor;
+                size.Increment=(decimal)TransferThreshold.Megabyte/divisor;
+                size.FormatString=unit.SelectedIndex==1?"0.##########":"0";
+                size.Value=(decimal)provider.ThresholdBytes/divisor;
+                hint.Text=$"单个文件 ≥ {TransferThreshold.Describe(provider.ThresholdBytes)}：双轨快传；小于阈值：普通 ADB。1 GB = 1024 MB，最小调整 1 MB。更改从下一次传输生效。";
+            }
+            finally{updating=false;}
+        }
+        void SaveThreshold(bool refresh=true)
+        {
+            Host.Settings.Set("thresholdBytes",provider.ThresholdBytes);Host.Settings.Save();
+            if(refresh)RefreshEditor();
+            else hint.Text=$"单个文件 ≥ {TransferThreshold.Describe(provider.ThresholdBytes)}：双轨快传；小于阈值：普通 ADB。1 GB = 1024 MB，最小调整 1 MB。更改从下一次传输生效。";
+        }
+        size.ValueChanged+=(_,_)=>
+        {
+            if(updating)return;
+            if(size.Value is not {} value){hint.Text="请输入有效大小；当前仍使用 "+TransferThreshold.Describe(provider.ThresholdBytes)+"。";return;}
+            provider.ThresholdBytes=TransferThreshold.FromDisplay(value,unit.SelectedIndex==1);SaveThreshold(false);
+        };
+        size.LostFocus+=(_,_)=>RefreshEditor();
+        unit.SelectionChanged+=(_,_)=>{if(!updating)RefreshEditor();};
+        reset.Click+=(_,_)=>{provider.ThresholdBytes=TransferThreshold.DefaultBytes;updating=true;unit.SelectedIndex=1;updating=false;SaveThreshold();};
+        RefreshEditor();editor.Children.Add(size);editor.Children.Add(unit);editor.Children.Add(reset);content.Children.Add(editor);content.Children.Add(hint);
         var wifi=new CheckBox { Content="自动叠加同一局域网中的 Wi-Fi 通道",IsChecked=provider.Wifi };
         wifi.IsCheckedChanged+=(_,_)=>{provider.Wifi=wifi.IsChecked==true;Host.Settings.Set("wifi",provider.Wifi);Host.Settings.Save();};content.Children.Add(wifi);
         content.Children.Add(Text("USB 保持连接，手机和电脑连接同一局域网。Wi-Fi 不可达时仍使用 USB 单通道，并如实显示通道；设备临时服务无法启动时，宿主会提示并使用原有 ADB 传输。已开始的传输失败不会自动重试覆盖。"));

@@ -36,7 +36,7 @@ public sealed class FileTransferRegistry
                 await p.Provider.TransferAsync(request, new ForwardProgress(this), ct).ConfigureAwait(false);
                 return true;
             }
-            catch (PluginTransferUnavailableException ex) { Say(p.Provider.DisplayName + "不可用，使用 ADB 兼容传输：" + ex.Message); }
+            catch (PluginTransferUnavailableException ex) { Say("使用 ADB 兼容传输：" + ex.Message); }
             finally { Interlocked.Decrement(ref _active); }
         }
         return false;
