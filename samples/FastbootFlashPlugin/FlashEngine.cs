@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -147,16 +147,84 @@ public sealed class FlashEngine
     }
     public async Task RebootAsync(DeviceTarget target, string mode, CancellationToken ct)
     {
-        if (mode is not ("bootloader" or "fastboot" or "system")) throw new InvalidDataException("未知重启模式。");
+        if (mode is not ("bootloader" or "fastboot" or "system" or "recovery" or "edl"))
+            throw new InvalidDataException("未知重启模式。");
         if (!await _operation.WaitAsync(0, ct)) throw new InvalidOperationException("设备任务尚未结束，不能切换模式。");
         try
         {
             using var operationLock = LockDeviceOperations();
-            var args = mode == "system" ? new[] { "reboot" } : new[] { "reboot", mode };
+            var args = mode switch
+            {
+                "system" => new[] { "reboot" },
+                // 9008 / EDL 走厂商扩展指令，只有部分机型支持；失败时把原始回显带出去
+                "edl" => new[] { "oem", "edl" },
+                _ => new[] { "reboot", mode }
+            };
             var result = await Call(target, args, ct);
+            if (!result.Ok && mode == "edl")
+                throw new InvalidOperationException("设备不支持进入 9008/EDL（部分机型需专用工具或组合键）。\n" + result.Output.Trim());
             Require(result, "重启");
         }
         finally { _operation.Release(); }
+    }
+
+    /// <summary>执行一条 fastboot 命令（不含可执行文件名）。参数按空格切分，支持双引号包裹。</summary>
+    public async Task<string> RunCommandAsync(DeviceTarget target, string commandLine, CancellationToken ct)
+    {
+        var args = SplitArgs(commandLine);
+        if (args.Count == 0) throw new InvalidDataException("命令不能为空。");
+        if (!await _operation.WaitAsync(0, ct)) throw new InvalidOperationException("设备任务尚未结束，不能执行命令。");
+        try
+        {
+            using var operationLock = LockDeviceOperations();
+            Say("fastboot " + string.Join(' ', args));
+            var result = await Call(target, args, ct);
+            Require(result, "命令");
+            return result.Output.Trim();
+        }
+        finally { _operation.Release(); }
+    }
+
+    /// <summary>擦除分区。已明确锁定的设备禁止；关键分区需要额外放行。</summary>
+    public async Task EraseAsync(DeviceDetails details, IReadOnlyList<Partition> parts, bool allowCritical, CancellationToken ct)
+    {
+        if (parts.Count == 0) throw new InvalidDataException("请先勾选要擦除的分区。");
+        if (details.Unlocked == false) throw new InvalidOperationException("设备已明确锁定，不能擦除分区。");
+        if (!allowCritical && parts.Any(p => Critical(p.Name)))
+            throw new InvalidOperationException("所选分区包含关键 / 数据分区，请先在「高级」中允许。");
+        if (!await _operation.WaitAsync(0, ct)) throw new InvalidOperationException("设备任务尚未结束。");
+        try
+        {
+            using var operationLock = LockDeviceOperations();
+            for (var i = 0; i < parts.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (StopRequested) { Say("已停止：擦除未全部完成。"); break; }
+                Progress?.Invoke(i, parts.Count, parts[i].Name);
+                Say($"erase {parts[i].Name}");
+                Require(await Call(details.Target, new[] { "erase", parts[i].Name }, ct), "擦除 " + parts[i].Name);
+            }
+        }
+        finally { _operation.Release(); }
+    }
+
+    private static List<string> SplitArgs(string line)
+    {
+        var list = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuote = false;
+        foreach (var ch in line)
+        {
+            if (ch == '"') { inQuote = !inQuote; continue; }
+            if (char.IsWhiteSpace(ch) && !inQuote)
+            {
+                if (current.Length > 0) { list.Add(current.ToString()); current.Clear(); }
+                continue;
+            }
+            current.Append(ch);
+        }
+        if (current.Length > 0) list.Add(current.ToString());
+        return list;
     }
     public static async Task<ImageInfo> InspectImageAsync(string file, CancellationToken ct)
     {

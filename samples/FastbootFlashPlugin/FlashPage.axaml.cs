@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 namespace FastbootFlashPlugin;
 public sealed partial class FlashPage : UserControl
@@ -6,9 +6,11 @@ public sealed partial class FlashPage : UserControl
     public FlashPage()
     {
         AvaloniaXamlLoader.Load(this);
-        // The plugin-management pane is shorter than the main navigation pane.
-        // Keep task controls usable there and scroll the whole workspace if necessary.
-        var workspace = this.FindControl<Grid>("Workspace")!;
-        SizeChanged += (_, _) => workspace.Height = Math.Max(540, Bounds.Height);
+        // 插件管理页那一栏比主导航页矮，这里保证工作区有可用的最小高度，
+        // 由外层 ScrollViewer / 容器负责滚动。
+        // 注意：必须判空——XAML 里改了结构却忘了同步这个名字时，原来的 ! 会变成运行时 NRE。
+        var workspace = this.FindControl<Grid>("Workspace");
+        if (workspace != null)
+            SizeChanged += (_, _) => workspace.MinHeight = Math.Max(580, Bounds.Height);
     }
 }

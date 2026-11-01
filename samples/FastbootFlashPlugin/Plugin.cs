@@ -16,7 +16,11 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
         {
             Id = "partition-flash", Title = "分区刷写", ShowInMainNavigation = true, NavigationOrder = 100,
             Description = "Fastboot刷写 / 原生回读 / ADB Root备份 / 固件包预览", Icon = "▣",
-            CreateViewAsync = (_, _) => Task.FromResult<Control>(new FlashPage { DataContext = _session })
+            CreateViewAsync = (_, _) =>
+            {
+                try { return Task.FromResult<Control>(new FlashPage { DataContext = _session }); }
+                catch (Exception ex) { Host.Log.Error("FlashPage 创建失败：" + ex); throw; }
+            }
         });
         return Task.CompletedTask;
     }
