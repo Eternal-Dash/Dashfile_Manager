@@ -86,11 +86,30 @@ var argTest = await runner.RunAsync(Transport.Fastboot, new[] { "--fake-tool", "
 Check("argument list has no shell interpolation", JsonSerializer.Deserialize<string[]>(argTest.Output)!.SequenceEqual(new[] { "path with spaces & $.img", "boot_a" }));
 var failResult = await runner.RunAsync(Transport.Fastboot, new[] { "--fake-tool", "fail" }, null, TimeSpan.FromSeconds(15), null, ct); Check("exit code preserved", failResult.ExitCode == 7);
 await Reject("native read process timeout", () => runner.RunAsync(Transport.AdbRoot, new[] { "--fake-tool", "sleep" }, null, TimeSpan.FromMilliseconds(150), null, ct));
+// Refactored command, erase and mode-switch paths must retain the same write guarantees.
+fake.Calls.Clear(); await engine.RunCommandAsync(target, "getvar \"current-slot\"", ct);
+Check("query remains bound to explicit serial", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "TEST-ONLY", "getvar", "current-slot" })));
+foreach (var command in new[] { "-s OTHER getvar all", "flashing unlock", "oem unlock", "flash boot_a file.img", "erase boot_a", "-w", "getvar all\nreboot", "getvar \"all", "getvar all extra", "oem edl" })
+    await Reject("reject unsafe query: " + command.Replace('\n', ' '), () => engine.RunCommandAsync(target, command, ct));
+await Reject("Fastboot command cannot accidentally run through ADB", () => engine.RunCommandAsync(adbDetails.Target, "getvar all", ct));
+fake.Unlocked = "no"; await Reject("erase rechecks current lock", () => engine.EraseAsync(details, details.Partitions, true, ct)); fake.Unlocked = "yes";
+await Reject("ADB is never an erase transport", () => engine.EraseAsync(adbDetails, adbDetails.Partitions, true, ct));
+await Reject("erase rejects duplicate partitions", () => engine.EraseAsync(details, new[] { details.Partitions[0], details.Partitions[0] }, false, ct));
+await Reject("erase rejects injected partition name", () => engine.EraseAsync(details, new[] { new Partition("../boot", 4096) }, true, ct));
+fake.Erases = 0; fake.FailPartition = "vbmeta_a"; await Reject("all erase targets checked before first erase", () => engine.EraseAsync(details, details.Partitions, false, ct)); Check("erase preflight failure leaves all partitions intact", fake.Erases == 0); fake.FailPartition = "";
+fake.Unlocked = ""; await Reject("unknown lock requires explicit erase acknowledgement", () => engine.EraseAsync(details, details.Partitions, false, ct)); fake.Unlocked = "yes";
+fake.Erases = 0; fake.Logical = true; await Reject("logical erase requires fastbootd", () => engine.EraseAsync(details, details.Partitions, false, ct)); Check("logical erase zero writes", fake.Erases == 0); fake.Logical = false;
+fake.Erases = 0; fake.FailErase = true; await Reject("erase fails on first error", () => engine.EraseAsync(details, details.Partitions, false, ct)); Check("failed erase does not continue", fake.Erases == 1); fake.FailErase = false;
+fake.Erases = 0; fake.OnErase = () => engine.RequestStop(); await Reject("stop waits current erase and cancels remaining", () => engine.EraseAsync(details, details.Partitions, false, ct)); Check("erase stops after current partition", fake.Erases == 1); fake.OnErase = null;
+fake.Erases = 0; await engine.EraseAsync(details, details.Partitions, false, ct); Check("new erase resets previous stop request", fake.Erases == details.Partitions.Count); Check("erase process has no mid-write cancellation or timeout", fake.EraseUninterruptible);
+fake.Calls.Clear(); await engine.RebootAsync(adbDetails.Target, "edl", ct); Check("ADB EDL uses reboot edl", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "ROOT-TEST", "reboot", "edl" })));
+fake.Calls.Clear(); await engine.RebootAsync(target, "edl", ct); Check("Fastboot EDL uses vendor oem command", fake.Calls.Any(a => a.SequenceEqual(new[] { "-s", "TEST-ONLY", "oem", "edl" })));
 Console.WriteLine($"{passed} passed, {failed} failed. Fixtures: {root}"); return failed == 0 ? 0 : 1;
 
 sealed class FakeRunner : IToolRunner
 {
     public string Product = "test-product"; public bool WriteUninterruptible = true; public string Unlocked = "yes"; public bool Logical; public int Size = 4096; public string FailPartition = "";
+    public int Erases; public bool FailErase; public bool EraseUninterruptible = true; public Action? OnErase;
     public bool FailWrite, ShortRead; public int Writes; public Action? OnWrite;
     public List<string[]> Calls { get; } = new();
     public string All => $"(bootloader) product: {Product}\n(bootloader) current-slot: a\n(bootloader) is-userspace: no\n(bootloader) unlocked: {Unlocked}\n(bootloader) partition-size:boot_a: 0x1000\n(bootloader) partition-size:vbmeta_a: 0x1000\n";
@@ -113,6 +132,7 @@ sealed class FakeRunner : IToolRunner
             if (key.StartsWith("partition-size:")) return new(0, key + ": " + (key.EndsWith(FailPartition) && FailPartition != "" ? "0" : Size.ToString("x")));
             return new(0, key + ": " + (key == "unlocked" ? Unlocked : ""));
         }
+        if (a.Contains("erase")) { EraseUninterruptible &= !ct.CanBeCanceled && timeout == null; Erases++; OnErase?.Invoke(); return new(FailErase ? 1 : 0, FailErase ? "FAILED fake erase" : "OKAY"); }
         if (a.Contains("fetch")) { await File.WriteAllBytesAsync(a[^1], new byte[ShortRead ? 128 : 4096], ct); return new(0, "OKAY"); }
         if (a.Contains("flash") || a.Contains("update")) { WriteUninterruptible &= !ct.CanBeCanceled && timeout == null; Writes++; OnWrite?.Invoke(); return new(FailWrite ? 1 : 0, FailWrite ? "FAILED fake write" : "OKAY"); }
         return new(0, "");

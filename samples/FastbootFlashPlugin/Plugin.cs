@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using DashFile.PluginApi;
 
 namespace FastbootFlashPlugin;
@@ -8,7 +8,7 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
     private FlashViewModel? _session;
     public bool IsOperationActive => _session?.IsBusy == true;
     public string OperationDescription => "分区刷写 / 镜像回读";
-    public override PluginMetadata Metadata => new() { Id = "com.dashfile.fastbootflash", Name = "Fastboot刷写", Version = "1.0.0", Author = "EternalDash", Description = "分区刷写与可验证备份" };
+    public override PluginMetadata Metadata => new() { Id = "com.dashfile.fastbootflash", Name = "Fastboot刷写", Version = "1.0.1", Author = "EternalDash", Description = "分区刷写与可验证备份" };
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
         _session = new FlashViewModel(Host, new FlashEngine(new NativeToolRunner()));
@@ -16,11 +16,7 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
         {
             Id = "partition-flash", Title = "分区刷写", ShowInMainNavigation = true, NavigationOrder = 100,
             Description = "Fastboot刷写 / 原生回读 / ADB Root备份 / 固件包预览", Icon = "▣",
-            CreateViewAsync = (_, _) =>
-            {
-                try { return Task.FromResult<Control>(new FlashPage { DataContext = _session }); }
-                catch (Exception ex) { Host.Log.Error("FlashPage 创建失败：" + ex); throw; }
-            }
+            CreateViewAsync = (_, _) => Task.FromResult<Control>(new FlashPage { DataContext = _session })
         });
         return Task.CompletedTask;
     }

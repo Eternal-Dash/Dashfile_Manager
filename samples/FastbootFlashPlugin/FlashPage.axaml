@@ -1,299 +1,187 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:FastbootFlashPlugin"
              x:Class="FastbootFlashPlugin.FlashPage" x:CompileBindings="False">
-  <UserControl.Styles>
-    <Style Selector="Border.card">
-      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="12"/>
-    </Style>
-    <Style Selector="TextBlock.cap"><Setter Property="Foreground" Value="{DynamicResource TextMuted}"/><Setter Property="FontSize" Value="11.5"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
-    <Style Selector="ToggleButton.group">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Padding" Value="10,9"/>
+  <UserControl.Resources>
+    <ControlTheme x:Key="PartitionRowTheme" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template"><ControlTemplate><Border x:Name="RowSurface" Background="Transparent" CornerRadius="{DynamicResource RadiusCtl}"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" HorizontalContentAlignment="Stretch"/></Border></ControlTemplate></Setter>
+      <Style Selector="^:pointerover /template/ Border#RowSurface"><Setter Property="Background" Value="{DynamicResource HoverLayer}"/></Style>
+      <Style Selector="^:selected /template/ Border#RowSurface"><Setter Property="Background" Value="{DynamicResource SelBg}"/></Style>
+    </ControlTheme>
+    <ControlTheme x:Key="FoldTheme" TargetType="Expander">
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
-      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-      <Setter Property="CornerRadius" Value="9"/>
-      <Setter Property="Transitions">
-        <Transitions><BrushTransition Property="Background" Duration="0:0:0.14"/></Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="ToggleButton.group:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
-    </Style>
-    <Style Selector="TextBlock.chev">
-      <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="VerticalAlignment" Value="Center"/>
-      <Setter Property="RenderTransform" Value="rotate(0deg)"/>
-      <Setter Property="Transitions">
-        <Transitions><TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18"/></Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="ToggleButton.group:checked TextBlock.chev">
-      <Setter Property="RenderTransform" Value="rotate(90deg)"/>
-    </Style>
-    <Style Selector="Button.act">
-      <Setter Property="HorizontalAlignment" Value="Stretch"/>
-      <Setter Property="HorizontalContentAlignment" Value="Left"/>
-      <Setter Property="MinHeight" Value="32"/>
-      <Setter Property="Padding" Value="12,6"/>
-      <Setter Property="CornerRadius" Value="9"/>
-      <Setter Property="Background" Value="{DynamicResource ChipBg}"/>
-      <Setter Property="Transitions">
-        <Transitions><BrushTransition Property="Background" Duration="0:0:0.14"/></Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.act:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource HoverLayer}"/>
-    </Style>
-    <Style Selector="Button.act.pri">
-      <Setter Property="Foreground" Value="{DynamicResource BtnPriFg}"/>
-      <Setter Property="HorizontalContentAlignment" Value="Center"/>
-    </Style>
-    <Style Selector="Button.act.pri /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource BtnPriBg}"/>
-    </Style>
-    <Style Selector="Button.act.small">
-      <Setter Property="MinHeight" Value="26"/>
-      <Setter Property="Padding" Value="8,3"/>
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="HorizontalAlignment" Value="Left"/>
-    </Style>
-    <Style Selector="ListBoxItem.row"><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="30"/></Style>
-    <Style Selector="Border.fold">
-      <Setter Property="ClipToBounds" Value="True"/>
-    </Style>
-  </UserControl.Styles>
-
-  <Grid x:Name="Workspace" RowDefinitions="Auto,*,Auto" RowSpacing="10" MinHeight="580">
-
-    <!-- 顶部：设备与读取 -->
-    <Border Grid.Row="0" Classes="card" Padding="12,10">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Classes="act" Content="检测设备" Command="{Binding DetectCommand}" IsEnabled="{Binding CanInteract}"/>
-          <TextBlock Text="设备" Classes="cap" VerticalAlignment="Center"/>
-          <RadioButton GroupName="dev" Content="自动" IsChecked="{Binding AutoDetect}" FontSize="12"/>
-          <RadioButton GroupName="dev" Content="指定" IsChecked="{Binding !AutoDetect}" FontSize="12"/>
-        </StackPanel>
-        <ComboBox Grid.Column="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
-                  HorizontalAlignment="Stretch" PlaceholderText="检测后选择设备 · 操作绑定序列号" IsEnabled="{Binding CanInteract}">
-          <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
-        </ComboBox>
-        <Button Grid.Column="2" Classes="act pri" Content="读取分区" Command="{Binding InspectCommand}" IsEnabled="{Binding CanInteract}" Padding="16,6"/>
-        <Button Grid.Column="3" Classes="act small" Content="导出日志" Command="{Binding ExportLogCommand}" VerticalAlignment="Center"/>
-      </Grid>
-    </Border>
-
-    <!-- 主体 -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,330" ColumnSpacing="10">
-
-      <!-- 左：分区表 -->
-      <Border Classes="card" Padding="0">
-        <Grid RowDefinitions="Auto,Auto,*,Auto">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8" Margin="12,10,12,8">
-            <TextBlock Text="搜索分区" Classes="cap" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding Filter}" Watermark="输入关键字…" MinHeight="30" IsEnabled="{Binding CanInteract}"/>
-            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="12">
-              <Run Text="已选择 "/><Run Text="{Binding SelectedCount}"/>
-            </TextBlock>
-            <Button Grid.Column="3" Classes="act small" Content="全选" Command="{Binding SelectAllCommand}" IsEnabled="{Binding CanInteract}"/>
-            <Button Grid.Column="4" Classes="act small" Content="清空" Command="{Binding SelectNoneCommand}" IsEnabled="{Binding CanInteract}"/>
-          </Grid>
-
-          <Border Grid.Row="1" Background="{DynamicResource ChipBg}" BorderBrush="{DynamicResource StrokeSoft}"
-                  BorderThickness="0,1,0,1" Padding="12,6">
-            <Grid ColumnDefinitions="28,*,96,104">
-              <TextBlock Text="命令" Classes="cap"/>
-              <TextBlock Grid.Column="1" Text="分区" Classes="cap"/>
-              <TextBlock Grid.Column="2" Text="大小" Classes="cap" HorizontalAlignment="Right"/>
-              <TextBlock Grid.Column="3" Text="镜像" Classes="cap" HorizontalAlignment="Right"/>
+      <Setter Property="Template"><ControlTemplate>
+        <Grid RowDefinitions="Auto,Auto">
+          <ToggleButton x:Name="FoldHeader" Classes="fold-header" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+            <Grid ColumnDefinitions="*,20" ColumnSpacing="8"><ContentPresenter Content="{TemplateBinding Header}" VerticalAlignment="Center"/>
+              <Path Grid.Column="1" Classes="fold-arrow" Data="M4,2 L10,8 L4,14" Width="7" Height="12" Stretch="Uniform" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.7" RenderTransformOrigin="50%,50%" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Grid>
-          </Border>
-
-          <ListBox Grid.Row="2" ItemsSource="{Binding Partitions}" SelectedItem="{Binding SelectedPartition}"
-                   Background="Transparent" BorderThickness="0" IsEnabled="{Binding CanInteract}">
-            <ListBox.Styles>
-              <Style Selector="ListBoxItem"><Setter Property="Padding" Value="0"/><Setter Property="MinHeight" Value="32"/></Style>
-            </ListBox.Styles>
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <Grid ColumnDefinitions="28,*,96,104" Margin="12,3" VerticalAlignment="Center">
-                  <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center"/>
-                  <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Medium"/>
-                    <TextBlock Text="{Binding KindText}" Classes="cap" FontSize="10"/>
-                  </StackPanel>
-                  <TextBlock Grid.Column="2" Text="{Binding SizeText}" Classes="cap" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                  <Button Grid.Column="3" Classes="act small" HorizontalAlignment="Right" Margin="4,0,0,0"
-                          Content="{Binding ImageLabel}"
-                          Command="{Binding $parent[UserControl].DataContext.PickRowImageCommand}"
-                          CommandParameter="{Binding}"/>
-                </Grid>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-
-          <Border Grid.Row="3" BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,1,0,0" Padding="12,7">
-            <TextBlock Text="{Binding CatalogSummary}" Classes="cap"/>
-          </Border>
+          </ToggleButton>
+          <ContentPresenter x:Name="FoldBody" Grid.Row="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" IsVisible="{TemplateBinding IsExpanded}" Margin="12,2,12,12"/>
+        </Grid>
+      </ControlTemplate></Setter>
+      <Style Selector="^ /template/ Path.fold-arrow">
+        <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+        <Setter Property="Transitions"><Transitions><TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18"/></Transitions></Setter>
+      </Style>
+      <Style Selector="^:expanded /template/ Path.fold-arrow"><Setter Property="RenderTransform" Value="rotate(90deg)"/></Style>
+      <Style Selector="^ /template/ ContentPresenter#FoldBody">
+        <Setter Property="Opacity" Value="0"/>
+        <Setter Property="RenderTransform" Value="translate(0px,4px)"/>
+        <Setter Property="Transitions"><Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.18"/>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18"/>
+        </Transitions></Setter>
+      </Style>
+      <Style Selector="^:expanded /template/ ContentPresenter#FoldBody">
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="RenderTransform" Value="translate(0px,0px)"/>
+      </Style>
+    </ControlTheme>
+  </UserControl.Resources>
+  <UserControl.Styles>
+    <Style Selector="Border.flash-surface"><Setter Property="Background" Value="{DynamicResource PanelAlt}"/><Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/></Style>
+    <Style Selector="TextBlock.flash-caption"><Setter Property="Foreground" Value="{DynamicResource TextMuted}"/><Setter Property="FontSize" Value="12"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+    <Style Selector="TextBlock.flash-label"><Setter Property="Foreground" Value="{DynamicResource TextMain}"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Button.tool"><Setter Property="MinHeight" Value="32"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Padding" Value="10,5"/></Style>
+    <Style Selector="TextBox"><Setter Property="MinHeight" Value="34"/><Setter Property="FontSize" Value="12.5"/></Style>
+    <Style Selector="CheckBox"><Setter Property="FontSize" Value="12"/></Style>
+    <Style Selector="ToggleButton.fold-header"><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="12,11"/><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{DynamicResource TextMain}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="CornerRadius" Value="{DynamicResource RadiusCtl}"/></Style>
+    <Style Selector="ToggleButton.fold-header:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource HoverLayer}"/></Style>
+    <Style Selector="ToggleButton.fold-header:checked /template/ ContentPresenter"><Setter Property="Background" Value="{DynamicResource AccentFill}"/><Setter Property="TextElement.Foreground" Value="{DynamicResource TextMain}"/></Style>
+    <Style Selector="Button.tool:disabled /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/><Setter Property="TextElement.Foreground" Value="{DynamicResource TextMuted}"/><Setter Property="Opacity" Value="0.45"/></Style>
+    <Style Selector="Border.flash-divider"><Setter Property="Height" Value="1"/><Setter Property="Margin" Value="12,0"/><Setter Property="Background" Value="{DynamicResource StrokeSoft}"/></Style>
+  </UserControl.Styles>
+  <ScrollViewer x:Name="Viewport" HorizontalScrollBarVisibility="Disabled">
+    <Grid x:Name="Workspace" Height="560" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+      <!-- One selection model, shared safely by the navigation and plugin-management views. -->
+      <Border Classes="flash-surface" Padding="12,10">
+        <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
+          <Grid ColumnDefinitions="140,*,Auto,Auto" ColumnSpacing="8">
+            <ComboBox ItemsSource="{Binding DeviceModes}" SelectedIndex="{Binding DeviceModeIndex}" IsEnabled="{Binding CanInteract}" HorizontalAlignment="Stretch" FontSize="12"/>
+            <Grid Grid.Column="1">
+              <ComboBox x:Name="DevicePicker" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" IsVisible="{Binding !AutoDetect}" IsEnabled="{Binding DeviceSelectionEnabled}" HorizontalAlignment="Stretch" PlaceholderText="检测设备后明确选择目标" FontSize="12.5">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Display}"/></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <Border IsVisible="{Binding AutoDetect}" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="1" CornerRadius="{DynamicResource RadiusCtl}" Padding="10,7">
+                <TextBlock Text="{Binding TargetDisplay}" Foreground="{DynamicResource TextMain}" FontSize="12.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+              </Border>
+            </Grid>
+            <Button Grid.Column="2" Classes="tool" Content="检测设备" Command="{Binding DetectCommand}" IsEnabled="{Binding CanInteract}"/>
+            <Button Grid.Column="3" Classes="tool pri" Content="读取分区" Command="{Binding InspectCommand}" IsEnabled="{Binding CanUseDevice}"/>
+          </Grid>
+          <TextBlock Grid.Row="1" Classes="flash-caption" Text="{Binding DeviceSummary}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
         </Grid>
       </Border>
-
-      <!-- 右：折叠操作面板 -->
-      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-        <Border Classes="card" Padding="6">
-          <StackPanel Spacing="1">
-
-            <ToggleButton Classes="group" x:Name="g1" IsChecked="true">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="基础操作" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g1.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <Button Classes="act" Content="读信息（分区表 / 解锁 / 槽位）" Command="{Binding InspectCommand}"/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                  <TextBox Text="{Binding CommandText}" Watermark="fastboot 命令，如 getvar all" MinHeight="32" FontFamily="Consolas" FontSize="12"/>
-                  <Button Grid.Column="1" Classes="act small" Content="执行命令" Command="{Binding RunCommandCommand}" VerticalAlignment="Center"/>
-                </Grid>
-                <Button Classes="act" Content="刷入选中分区（用行内镜像）" Command="{Binding FlashSelectedCommand}"/>
-                <Button Classes="act" Content="回读选中分区" Command="{Binding BackupSelectedCommand}"/>
-                <Button Classes="act" Content="擦除选中分区" Command="{Binding EraseSelectedCommand}"/>
-              </StackPanel>
+      <Grid x:Name="Columns" Grid.Row="1" ColumnDefinitions="*,330" ColumnSpacing="10">
+        <Border Classes="flash-surface" ClipToBounds="True">
+          <Grid RowDefinitions="Auto,Auto,*,Auto">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="12,11">
+              <TextBox x:Name="PartitionSearch" Text="{Binding Filter}" Watermark="搜索分区名称…" IsEnabled="{Binding CanInteract}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5"><Button Classes="tool" Content="全选" Command="{Binding SelectAllCommand}" IsEnabled="{Binding CanUsePartitions}" ToolTip.Tip="只选择当前筛选结果"/><Button Classes="tool" Content="清空" Command="{Binding SelectNoneCommand}" IsEnabled="{Binding CanUsePartitions}"/></StackPanel>
+            </Grid>
+            <Border Grid.Row="1" Background="{DynamicResource ChipBg}" BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,1,0,1" Padding="12,8">
+              <Grid ColumnDefinitions="30,*,76,138" ColumnSpacing="8"><TextBlock Classes="flash-caption" Text="选"/><TextBlock Grid.Column="1" Classes="flash-caption" Text="分区 / 类型"/><TextBlock Grid.Column="2" Classes="flash-caption" Text="大小" HorizontalAlignment="Right"/><TextBlock Grid.Column="3" Classes="flash-caption" Text="镜像文件"/></Grid>
             </Border>
-
-            <ToggleButton Classes="group" x:Name="g2" IsChecked="false">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="固件包（整包刷写）" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g2.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <TextBlock Text="AOSP Fastboot update ZIP、平铺 .img 目录、本插件备份包。OTA payload 与厂商脚本不执行。" Classes="cap"/>
-                <TextBox Text="{Binding PackagePath}" Watermark="固件包或镜像目录" MinHeight="32" FontSize="12"/>
-                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="6">
-                  <Button Classes="act small" Content="选择 ZIP" Command="{Binding PickPackageCommand}"/>
-                  <Button Grid.Column="1" Classes="act small" Content="选择目录" Command="{Binding PickPackageFolderCommand}"/>
-                  <ComboBox Grid.Column="2" ItemsSource="{Binding Slots}" SelectedItem="{Binding Slot}" Width="92" MinHeight="26" FontSize="11"/>
-                </Grid>
-                <Button Classes="act" Content="解析并预览整包" Command="{Binding PreviewPackageCommand}"/>
+            <Grid Grid.Row="2">
+              <ListBox x:Name="PartitionList" ItemsSource="{Binding Partitions}" SelectedItem="{Binding SelectedPartition}" Background="Transparent" BorderThickness="0" ItemContainerTheme="{StaticResource PartitionRowTheme}" IsEnabled="{Binding CanInteract}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="4,3">
+                <ListBox.ItemTemplate><DataTemplate>
+                  <Border BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,0,0,1" Padding="8,8">
+                    <Grid ColumnDefinitions="30,*,76,138" ColumnSpacing="8">
+                      <CheckBox IsChecked="{Binding Selected}" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center"><TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis"/><TextBlock Classes="flash-caption" Text="{Binding KindText}" FontSize="11"/></StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="12" Foreground="{DynamicResource TextSub}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                      <Button Grid.Column="3" Classes="tool" Command="{Binding $parent[UserControl].DataContext.PickRowImageCommand}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" ToolTip.Tip="{Binding ImagePath}"><TextBlock Text="{Binding ImageLabel}" TextTrimming="CharacterEllipsis"/></Button>
+                    </Grid>
+                  </Border>
+                </DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel IsVisible="{Binding ListEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9" MaxWidth="290" Margin="16" IsHitTestVisible="False">
+                <Path Data="M2,2 H18 V18 H2 Z M2,7 H18 M8,7 V18" Width="30" Height="30" Stroke="{DynamicResource TextMuted}" StrokeThickness="1.2" Stretch="Uniform" HorizontalAlignment="Center"/>
+                <TextBlock Classes="flash-label" Text="{Binding EmptyTitle}" HorizontalAlignment="Center"/>
+                <TextBlock Classes="flash-caption" Text="{Binding EmptyDescription}" TextAlignment="Center"/>
               </StackPanel>
-            </Border>
-
-            <ToggleButton Classes="group" x:Name="g3" IsChecked="false">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="单镜像写入" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g3.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <Grid ColumnDefinitions="*,92" ColumnSpacing="6">
-                  <TextBox Text="{Binding TargetPartition}" Watermark="目标分区，例如 boot" MinHeight="32" FontSize="12"/>
-                  <ComboBox Grid.Column="1" ItemsSource="{Binding Slots}" SelectedItem="{Binding Slot}" MinHeight="32"/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                  <TextBox Text="{Binding ImagePath}" Watermark="镜像文件" MinHeight="32" FontSize="12"/>
-                  <Button Grid.Column="1" Classes="act small" Content="选择" Command="{Binding PickImageCommand}" VerticalAlignment="Center"/>
-                </Grid>
-                <Button Classes="act" Content="生成刷写预览" Command="{Binding PreviewImageCommand}"/>
-              </StackPanel>
-            </Border>
-
-            <ToggleButton Classes="group" x:Name="g4" IsChecked="false">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="备份与恢复" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g4.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                  <TextBox Text="{Binding OutputFolder}" Watermark="回读输出目录" MinHeight="32" FontSize="12"/>
-                  <Button Grid.Column="1" Classes="act small" Content="选择" Command="{Binding PickOutputCommand}" VerticalAlignment="Center"/>
-                </Grid>
-                <CheckBox Content="同时生成 ZIP 备份包" IsChecked="{Binding ZipBackup}" FontSize="12"/>
-                <Button Classes="act" Content="回读全部已枚举分区" Command="{Binding BackupAllCommand}"/>
-                <TextBlock Text="整包恢复：在上方「固件包」里选择 .dfbackup.zip 后预览即可。逐分区校验长度与 SHA-256，失败即停。" Classes="cap"/>
-              </StackPanel>
-            </Border>
-
-            <ToggleButton Classes="group" x:Name="g5" IsChecked="false">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="重启功能" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g5.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <Button Classes="act" Content="重启至  ▾">
-                  <Button.Flyout>
-                    <Flyout Placement="Bottom">
-                      <StackPanel Width="190" Spacing="2">
-                        <Button Classes="act" Content="系统" Command="{Binding RebootToCommand}" CommandParameter="system"/>
-                        <Button Classes="act" Content="Fastbootd" Command="{Binding RebootToCommand}" CommandParameter="fastboot"/>
-                        <Button Classes="act" Content="Fastboot（Bootloader）" Command="{Binding RebootToCommand}" CommandParameter="bootloader"/>
-                        <Button Classes="act" Content="Recovery" Command="{Binding RebootToCommand}" CommandParameter="recovery"/>
-                        <Button Classes="act" Content="9008 / EDL" Command="{Binding RebootToCommand}" CommandParameter="edl"/>
-                      </StackPanel>
-                    </Flyout>
-                  </Button.Flyout>
-                </Button>
-                <TextBlock Text="9008/EDL 属厂商扩展指令，仅部分机型支持；进入后需要用专用工具退出。" Classes="cap"/>
-              </StackPanel>
-            </Border>
-
-            <ToggleButton Classes="group" x:Name="g6" IsChecked="false">
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="高级与约束" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
-              </Grid>
-            </ToggleButton>
-            <Border Classes="fold" IsVisible="{Binding #g6.IsChecked}">
-              <StackPanel Spacing="6" Margin="8,2,8,10" IsEnabled="{Binding CanInteract}">
-                <CheckBox Content="设备未报告解锁状态：我已确认已解锁" IsChecked="{Binding ManualUnlock}" FontSize="12"/>
-                <CheckBox Content="允许关键 / 数据分区（可能清空数据）" IsChecked="{Binding AllowCritical}" FontSize="12"/>
-                <TextBlock Text="执行计划" FontWeight="SemiBold" FontSize="12" Margin="0,4,0,0"/>
-                <TextBox Text="{Binding PlanText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                         MinHeight="90" MaxHeight="180" FontSize="11"/>
-                <Button Classes="act pri" Content="确认并开始刷写" Command="{Binding ExecuteCommand}" IsEnabled="{Binding HasPlan}"/>
-                <TextBlock Text="已明确锁定的设备始终禁止刷写。逻辑分区需在 fastbootd 中操作。" Classes="cap"/>
-              </StackPanel>
-            </Border>
-
-          </StackPanel>
-        </Border>
-      </ScrollViewer>
-    </Grid>
-
-    <!-- 底部：状态 + 日志 -->
-    <Border Grid.Row="2" Classes="card" Padding="12,9">
-      <StackPanel Spacing="6">
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-          <StackPanel Spacing="5">
-            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"/>
-            <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="3" IsVisible="{Binding IsBusy}"/>
-            <TextBlock Text="{Binding ProgressText}" Classes="cap" IsVisible="{Binding IsBusy}"/>
-          </StackPanel>
-          <Button Grid.Column="1" Classes="act small" Content="停止后续任务" Command="{Binding StopCommand}" IsEnabled="{Binding IsBusy}" VerticalAlignment="Center"/>
-        </Grid>
-        <ToggleButton Classes="group" IsChecked="{Binding IsLogOpen}" Padding="4,3">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="任务日志" FontSize="12" Foreground="{DynamicResource TextMuted}"/>
-            <TextBlock Grid.Column="1" Classes="chev" Text="›"/>
+            </Grid>
+            <Border Grid.Row="3" BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,1,0,0" Padding="12,9"><TextBlock Classes="flash-caption" Text="{Binding CatalogSummary}"/></Border>
           </Grid>
-        </ToggleButton>
-        <Border Classes="fold" IsVisible="{Binding IsLogOpen}">
-          <TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                   FontFamily="Consolas" FontSize="11" MinHeight="96" MaxHeight="150"/>
         </Border>
-      </StackPanel>
-    </Border>
-  </Grid>
+        <Border Grid.Column="1" Classes="flash-surface" Padding="4" ClipToBounds="True">
+          <ScrollViewer x:Name="OperationsScroll" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+              <Expander x:Name="BasicSection" Theme="{StaticResource FoldTheme}" Header="基础操作" IsExpanded="{Binding IsBasicsOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8" IsEnabled="{Binding CanUsePartitions}">
+                  <TextBlock Classes="flash-caption" Text="每个勾选分区都需选择镜像。先生成计划，核对后写入。"/>
+                  <Button Classes="tool pri" Content="预览选中分区刷写" Command="{Binding FlashSelectedCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="回读选中分区" Command="{Binding BackupSelectedCommand}" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="擦除选中分区…" Command="{Binding EraseSelectedCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="PackageSection" Theme="{StaticResource FoldTheme}" Header="固件包与备份恢复" IsExpanded="{Binding IsPackageOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8" IsEnabled="{Binding CanInteract}">
+                  <TextBlock Classes="flash-caption" Text="AOSP update ZIP、镜像目录和本插件备份包；不执行厂商脚本或 OTA payload。"/>
+                  <TextBox Text="{Binding PackagePath}" Watermark="固件包或镜像目录"/>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="6"><Button Classes="tool" Content="选择 ZIP" Command="{Binding PickPackageCommand}"/><Button Grid.Column="1" Classes="tool" Content="选择目录" Command="{Binding PickPackageFolderCommand}"/></Grid>
+                  <Button Classes="tool pri" Content="解析并预览整包" Command="{Binding PreviewPackageCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
+                  <TextBlock Classes="flash-caption" Text="备份恢复会核对机型、设备序列号、清单及 SHA-256。"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="ImageSection" Theme="{StaticResource FoldTheme}" Header="指定镜像与槽位" IsExpanded="{Binding IsImageOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8" IsEnabled="{Binding CanInteract}">
+                  <Grid ColumnDefinitions="*,90" ColumnSpacing="6"><TextBox Text="{Binding TargetPartition}" Watermark="目标分区，如 boot"/><ComboBox Grid.Column="1" ItemsSource="{Binding Slots}" SelectedItem="{Binding Slot}" HorizontalAlignment="Stretch"/></Grid>
+                  <TextBlock Classes="flash-caption" Text="current 为当前槽，a / b 为指定槽；整包 ZIP 遵循包内指令。"/>
+                  <TextBox Text="{Binding ImagePath}" Watermark="原始或 Sparse 镜像"/>
+                  <Button Classes="tool" Content="选择镜像" Command="{Binding PickImageCommand}" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool pri" Content="预览单镜像刷写" Command="{Binding PreviewImageCommand}" IsEnabled="{Binding CanWriteDevice}" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="BackupSection" Theme="{StaticResource FoldTheme}" Header="回读与备份选项" IsExpanded="{Binding IsBackupOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8" IsEnabled="{Binding CanInteract}">
+                  <TextBox Text="{Binding OutputFolder}" Watermark="输出目录"/>
+                  <Button Classes="tool" Content="选择输出目录" Command="{Binding PickOutputCommand}" HorizontalAlignment="Stretch"/>
+                  <CheckBox Content="同时生成 ZIP（需要双份空间）" IsChecked="{Binding ZipBackup}"/>
+                  <Button Classes="tool" Content="回读全部已枚举分区" Command="{Binding BackupAllCommand}" IsEnabled="{Binding CanUsePartitions}" HorizontalAlignment="Stretch"/>
+                  <TextBlock Classes="flash-caption" Text="Fastboot 回读依赖设备支持 fetch；ADB 回读需 Root。已枚举分区备份不等于厂商完整 ROM。"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="RebootSection" Theme="{StaticResource FoldTheme}" Header="重启至…">
+                <StackPanel Spacing="7" IsEnabled="{Binding CanUseDevice}">
+                  <Button Classes="tool" Content="系统" Command="{Binding RebootToCommand}" CommandParameter="system" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="Fastbootd" Command="{Binding RebootToCommand}" CommandParameter="fastboot" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="Fastboot / Bootloader" Command="{Binding RebootToCommand}" CommandParameter="bootloader" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="Recovery" Command="{Binding RebootToCommand}" CommandParameter="recovery" HorizontalAlignment="Stretch"/>
+                  <Button Classes="tool" Content="9008 / EDL" Command="{Binding RebootToCommand}" CommandParameter="edl" HorizontalAlignment="Stretch"/>
+                  <TextBlock Classes="flash-caption" Text="EDL 为厂商扩展，仅部分机型支持；进入前确认已具备退出或恢复手段。"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="AdvancedSection" Theme="{StaticResource FoldTheme}" Header="查询与刷写约束" IsExpanded="{Binding IsAdvancedOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8" IsEnabled="{Binding CanInteract}">
+                  <TextBox Text="{Binding CommandText}" Watermark="如 getvar all" FontFamily="Consolas"/>
+                  <Button Classes="tool" Content="执行查询命令" Command="{Binding RunCommandCommand}" IsEnabled="{Binding CanUseDevice}" HorizontalAlignment="Stretch"/>
+                  <TextBlock Classes="flash-caption" Text="支持 getvar 和 oem device-info；写入、擦除和解锁指令不从查询入口执行。"/>
+                  <CheckBox Content="未报告解锁状态：我已核实已解锁" IsChecked="{Binding ManualUnlock}"/>
+                  <CheckBox Content="允许关键 / 数据分区" IsChecked="{Binding AllowCritical}"/>
+                  <TextBlock Classes="flash-caption" Text="明确锁定的设备禁止写入；逻辑分区需 fastbootd。此处不提供 BL 解锁。"/>
+                </StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="PlanSection" Theme="{StaticResource FoldTheme}" Header="执行计划" IsExpanded="{Binding IsPlanOpen, Mode=TwoWay}">
+                <StackPanel Spacing="9"><TextBox Text="{Binding PlanText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxHeight="210" FontSize="12"/><Button Classes="tool pri" Content="确认并开始刷写…" Command="{Binding ExecuteCommand}" IsEnabled="{Binding HasPlan}" HorizontalAlignment="Stretch"/></StackPanel>
+              </Expander>
+              <Border Classes="flash-divider"/>
+              <Expander x:Name="LogSection" Theme="{StaticResource FoldTheme}" Header="任务日志" IsExpanded="{Binding IsLogOpen, Mode=TwoWay}">
+                <StackPanel Spacing="8"><TextBox Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11.5" Height="180"/><Button Classes="tool" Content="导出日志" Command="{Binding ExportLogCommand}" IsEnabled="{Binding CanInteract}" HorizontalAlignment="Stretch"/></StackPanel>
+              </Expander>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+      <Border Grid.Row="2" Classes="flash-surface" Padding="12,10">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"><StackPanel Spacing="5"><TextBlock Text="{Binding Status}" FontSize="12.5" TextWrapping="Wrap"/><ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="4" IsVisible="{Binding IsBusy}"/><TextBlock Classes="flash-caption" Text="{Binding ProgressText}" IsVisible="{Binding IsBusy}"/></StackPanel><Button Grid.Column="1" Classes="tool" Content="停止后续任务" Command="{Binding StopCommand}" IsEnabled="{Binding IsBusy}" VerticalAlignment="Center"/></Grid>
+      </Border>
+    </Grid>
+  </ScrollViewer>
 </UserControl>

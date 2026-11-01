@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -157,7 +157,7 @@ public sealed class FlashEngine
             {
                 "system" => new[] { "reboot" },
                 // 9008 / EDL 走厂商扩展指令，只有部分机型支持；失败时把原始回显带出去
-                "edl" => new[] { "oem", "edl" },
+                "edl" => target.Transport == Transport.Fastboot ? new[] { "oem", "edl" } : new[] { "reboot", "edl" },
                 _ => new[] { "reboot", mode }
             };
             var result = await Call(target, args, ct);
@@ -168,48 +168,62 @@ public sealed class FlashEngine
         finally { _operation.Release(); }
     }
 
-    /// <summary>执行一条 fastboot 命令（不含可执行文件名）。参数按空格切分，支持双引号包裹。</summary>
+    /// <summary>Only explicit, device-bound queries are accepted here. Writes use verified plans.</summary>
     public async Task<string> RunCommandAsync(DeviceTarget target, string commandLine, CancellationToken ct)
     {
+        if (target.Transport != Transport.Fastboot) throw new InvalidOperationException("查询命令仅用于 Fastboot 设备；ADB 设备请使用读取分区。");
         var args = SplitArgs(commandLine);
-        if (args.Count == 0) throw new InvalidDataException("命令不能为空。");
+        if (!(args.Count == 2 && args[0] == "getvar" && (args[1] == "all" || System.Text.RegularExpressions.Regex.IsMatch(args[1], "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$"))) &&
+            !args.SequenceEqual(new[] { "oem", "device-info" }))
+            throw new InvalidDataException("此入口支持 getvar <变量或 all>、oem device-info。写入和擦除请使用带预检的专用操作；不接受改选设备、解锁或脚本指令。");
         if (!await _operation.WaitAsync(0, ct)) throw new InvalidOperationException("设备任务尚未结束，不能执行命令。");
         try
         {
             using var operationLock = LockDeviceOperations();
-            Say("fastboot " + string.Join(' ', args));
             var result = await Call(target, args, ct);
-            Require(result, "命令");
+            Require(result, "查询");
             return result.Output.Trim();
         }
         finally { _operation.Release(); }
     }
 
-    /// <summary>擦除分区。已明确锁定的设备禁止；关键分区需要额外放行。</summary>
-    public async Task EraseAsync(DeviceDetails details, IReadOnlyList<Partition> parts, bool allowCritical, CancellationToken ct)
+    public async Task EraseAsync(DeviceDetails details, IReadOnlyList<Partition> parts, bool allowCritical, CancellationToken ct, bool manualUnlock = false)
     {
         if (parts.Count == 0) throw new InvalidDataException("请先勾选要擦除的分区。");
-        if (details.Unlocked == false) throw new InvalidOperationException("设备已明确锁定，不能擦除分区。");
-        if (!allowCritical && parts.Any(p => Critical(p.Name)))
-            throw new InvalidOperationException("所选分区包含关键 / 数据分区，请先在「高级」中允许。");
         if (!await _operation.WaitAsync(0, ct)) throw new InvalidOperationException("设备任务尚未结束。");
+        StopRequested = false;
         try
         {
             using var operationLock = LockDeviceOperations();
+            var current = await InspectAsync(details.Target, ct);
+            if (current.Product != details.Product) throw new InvalidOperationException("设备机型已变化，请重新读取分区。");
+            Writable(current, manualUnlock);
+            var targets = new HashSet<string>(StringComparer.Ordinal);
+            // Preflight every target before the first destructive command.
+            foreach (var part in parts)
+            {
+                Name(part.Name);
+                if (!targets.Add(part.Name)) throw new InvalidDataException("重复分区：" + part.Name);
+                if (!current.Partitions.Any(p => p.Name == part.Name)) throw new InvalidDataException("分区表已变化或目标不存在：" + part.Name);
+                await CheckPartition(current, part.Name, new ImageInfo("", 0, 0, ""), allowCritical, ct);
+            }
             for (var i = 0; i < parts.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                if (StopRequested) { Say("已停止：擦除未全部完成。"); break; }
+                if (StopRequested) throw new OperationCanceledException("已停止后续擦除；已擦除内容不能回滚。");
                 Progress?.Invoke(i, parts.Count, parts[i].Name);
-                Say($"erase {parts[i].Name}");
-                Require(await Call(details.Target, new[] { "erase", parts[i].Name }, ct), "擦除 " + parts[i].Name);
+                IsWriting = true;
+                try { Require(await Call(current.Target, new[] { "erase", parts[i].Name }, CancellationToken.None, write: true), "擦除 " + parts[i].Name); }
+                finally { IsWriting = false; }
+                Progress?.Invoke(i + 1, parts.Count, parts[i].Name);
             }
         }
-        finally { _operation.Release(); }
+        finally { IsWriting = false; _operation.Release(); }
     }
 
     private static List<string> SplitArgs(string line)
     {
+        if (line.Length > 1024 || line.Any(char.IsControl)) throw new InvalidDataException("命令过长或含控制字符。");
         var list = new List<string>();
         var current = new System.Text.StringBuilder();
         var inQuote = false;
@@ -223,6 +237,7 @@ public sealed class FlashEngine
             }
             current.Append(ch);
         }
+        if (inQuote) throw new InvalidDataException("命令中的双引号未闭合。");
         if (current.Length > 0) list.Add(current.ToString());
         return list;
     }
