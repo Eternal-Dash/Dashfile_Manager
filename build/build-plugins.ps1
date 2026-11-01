@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Configuration = "Release",
     [string]$OutputDir = ""
 )
@@ -21,14 +21,16 @@ if (Test-Path (Join-Path $sdk "dotnet.exe")) {
 # 热插拔插件：每个插件 = 一个目录 + plugin.json + 入口 dll。
 # 只复制入口 dll；Avalonia / DashFile.PluginApi 由宿主提供。
 # 按下列清单生成插件包；宿主依赖不重复打包。
+# DfpName：分发给用户看的文件名。插件 ID 仍以 plugin.json 里的 id 为准，
+# 宿主按 id 识别插件，所以文件名可以随便起——这里用中文，下载下来一眼能看懂。
 $plugins = @(
-    @{ Name = "HybridTransferPlugin"; Id = "com.dashfile.hybridtransfer"; Dll = "HybridTransferPlugin.dll" },
-    @{ Name = "FastbootFlashPlugin"; Id = "com.dashfile.fastbootflash"; Dll = "FastbootFlashPlugin.dll" },
-    @{ Name = "AvbStudioPlugin"; Id = "com.dashfile.avbstudio"; Dll = "AvbStudioPlugin.dll" },
+    @{ Name = "HybridTransferPlugin"; Id = "com.dashfile.hybridtransfer"; DfpName = "DashFile - 双轨快传"; Dll = "HybridTransferPlugin.dll" },
+    @{ Name = "FastbootFlashPlugin"; Id = "com.dashfile.fastbootflash"; DfpName = "DashFile - 分区刷写"; Dll = "FastbootFlashPlugin.dll" },
+    @{ Name = "AvbStudioPlugin"; Id = "com.dashfile.avbstudio"; DfpName = "DashFile - AVB 工作台"; Dll = "AvbStudioPlugin.dll" },
     # 逆向工具箱：不随仓库分发（源码保留在 samples/ReverseToolboxPlugin，自行构建后可本地使用）
     # @{ Name = "ReverseToolboxPlugin"; Id = "com.dashfile.reversetool"; Dll = "ReverseToolboxPlugin.dll" },
     # 示例插件：不随仓库 plugins/ 与发布包分发，只作为二次开发的模板（手动取 buildplugin-distcom.dashfile.hello.dfp）
-    @{ Name = "HelloPlugin"; Id = "com.dashfile.hello"; Dll = "HelloPlugin.dll" }
+    @{ Name = "HelloPlugin"; Id = "com.dashfile.hello"; DfpName = "DashFile - Hello 示例"; Dll = "HelloPlugin.dll" }
 )
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -58,7 +60,8 @@ foreach ($plugin in $plugins) {
     Copy-Item (Join-Path $root "COPYRIGHT") $dst -Force
 
     # 统一分发后缀：.dfp（zip），根目录直接是 plugin.json + 入口 DLL
-    $dfp = Join-Path $OutputDir ($plugin.Id + ".dfp")
+    $dfpName = if ($plugin.DfpName) { $plugin.DfpName } else { $plugin.Id }
+    $dfp = Join-Path $OutputDir ($dfpName + ".dfp")
     if (Test-Path $dfp) { Remove-Item $dfp -Force }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::CreateFromDirectory($dst, $dfp,
