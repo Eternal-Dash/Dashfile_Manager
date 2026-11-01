@@ -140,7 +140,7 @@ public sealed class AdbRunner
     }
 
     /// <summary>Streams binary stdout; process result belongs to this call, never shared LastExec state.</summary>
-    public async Task<ProcResult> ExecOutToFileAsync(IEnumerable<string> args, string file, CancellationToken ct = default)
+    public async Task<ProcResult> ExecOutToFileAsync(IEnumerable<string> args, string file, CancellationToken ct = default, Action<long>? progress = null)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         if (TransferTimeout > TimeSpan.Zero) linked.CancelAfter(TransferTimeout);
@@ -152,11 +152,18 @@ public sealed class AdbRunner
         {
             using var output = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, true);
             errors = process.StandardError.ReadToEndAsync(linked.Token);
-            await Task.WhenAll(process.StandardOutput.BaseStream.CopyToAsync(output, linked.Token), process.WaitForExitAsync(linked.Token)).ConfigureAwait(false);
+            async Task Copy()
+            {
+                var buffer=new byte[1024*1024];long copied=0;int n;
+                while((n=await process.StandardOutput.BaseStream.ReadAsync(buffer,linked.Token).ConfigureAwait(false))>0)
+                {await output.WriteAsync(buffer.AsMemory(0,n),linked.Token).ConfigureAwait(false);copied+=n;progress?.Invoke(copied);}
+            }
+            await Task.WhenAll(Copy(), process.WaitForExitAsync(linked.Token)).ConfigureAwait(false);
             await output.FlushAsync(linked.Token).ConfigureAwait(false);
             return new ProcResult(process.ExitCode, "", await errors.ConfigureAwait(false));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new TimeoutException("ADB 文件传输超时。"); }
+        catch (IOException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
         finally
         {
             try { if (!process.HasExited) process.Kill(true); } catch { }

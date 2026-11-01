@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DashFile.Views.TransferProgressWindow"
+        Width="560" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" Title="文件传输"
+        Background="{DynamicResource Bg}" FontFamily="Microsoft YaHei UI, Segoe UI">
+  <StackPanel Margin="24" Spacing="14">
+    <TextBlock x:Name="DirectionText" FontSize="21" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+    <TextBlock x:Name="FileNameText" FontSize="14" TextWrapping="Wrap" Foreground="{DynamicResource TextMain}"/>
+    <TextBlock x:Name="ChannelText" FontSize="13" Foreground="{DynamicResource TextMuted}"/>
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="PhaseText" FontSize="14" Foreground="{DynamicResource TextMain}"/>
+      <TextBlock x:Name="PercentText" Grid.Column="1" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+    </Grid>
+    <ProgressBar x:Name="TransferBar" Minimum="0" Maximum="100" Height="10" Foreground="{DynamicResource Accent}"/>
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock x:Name="BytesText" FontSize="13" Foreground="{DynamicResource TextMuted}"/>
+      <TextBlock x:Name="SpeedText" Grid.Column="1" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+    </Grid>
+    <TextBlock x:Name="TimeText" FontSize="13" Foreground="{DynamicResource TextMuted}"/>
+    <Separator/>
+    <TextBlock x:Name="NoticeText" Text="取消或关闭窗口会先停止传输，清理本次未完成文件后再关闭。原文件与已完成文件保留。"
+               TextWrapping="Wrap" FontSize="12.5" Foreground="{DynamicResource TextMuted}"/>
+    <Button x:Name="CancelButton" Classes="tool" Content="取消传输" HorizontalAlignment="Right" Click="OnCancel"/>
+  </StackPanel>
+</Window>

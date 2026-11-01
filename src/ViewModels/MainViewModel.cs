@@ -21,7 +21,6 @@ namespace DashFile.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     public FileTransferRegistry FileTransfers { get; } = new();
-    private long _lastTransferProgress;
     private readonly AdbRunner _runner;
     private readonly AdbClient _client;
     private RemoteFileSystem? _fs;
@@ -37,14 +36,14 @@ public partial class MainViewModel : ObservableObject
         _client = new AdbClient(_runner);
         _power = new PowerService(_runner);
         AdbPath = adb;
-        FileTransfers.Status += message => Avalonia.Threading.Dispatcher.UIThread.Post(() => { StatusText = message; LogLine(message); });
-        FileTransfers.Progress += progress =>
+        FileTransfers.Status += message => Avalonia.Threading.Dispatcher.UIThread.Post(() => LogLine(message));
+        FileTransfers.Operations.Started += operation => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            var now = Environment.TickCount64;
-            if (progress.CompletedBytes < progress.TotalBytes && now - Interlocked.Read(ref _lastTransferProgress) < 100) return;
-            Interlocked.Exchange(ref _lastTransferProgress, now);
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusText = $"双轨快传 · {progress.Channels} · {progress.Phase} · {progress.FileName} · {progress.CompletedBytes / 1048576d:F1}/{progress.TotalBytes / 1048576d:F1} MiB");
-        };
+            var owner=(Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if(owner==null||operation.Snapshot.Finished)return;
+            try{new DashFile.Views.TransferProgressWindow(operation).Show(owner);}
+            catch(Exception ex){operation.Cancel();LogLine("传输窗口无法打开："+ex.Message);}
+        });
 
         // 说明：设备检测统一走 StartWatchdog() 的 1.2s 轮询 + WM_DEVICECHANGE 加速。
         // （原来的 AdbDeviceTracker 从未被启动/订阅，已作为死代码删除）
@@ -2382,38 +2381,27 @@ public partial class MainViewModel : ObservableObject
     /// <summary>把设备上的文件导出到电脑上的某个文件夹（拖到窗口外时用）</summary>
     public async Task ExportToAsync(IReadOnlyList<PosixEntry> items, string localDir)
     {
-        if (items.Count == 0 || string.IsNullOrWhiteSpace(localDir)) return;
-        try { Directory.CreateDirectory(localDir); } catch { }
-
-        var exportFs=_fs;
-        var locals = new List<string>();
-        for (int i = 0; i < items.Count; i++)
+        var fs=_fs;if(fs==null||items.Count==0||string.IsNullOrWhiteSpace(localDir))return;
+        Directory.CreateDirectory(localDir);var completed=0;
+        foreach(var item in items)
         {
-            if(!ReferenceEquals(exportFs,_fs)){LogLine("EXPORT 设备已切换，停止读取");break;}
-            var it = items[i];
-            DragHint = $"正在从设备读取 {i + 1}/{items.Count}：{it.DisplayName}";
+            if(!ReferenceEquals(fs,_fs)){LogLine("EXPORT 设备已切换，停止后续导出");break;}
             try
             {
-                var local = await PrepareDragFileAsync(it);
-                if (!string.IsNullOrEmpty(local)) locals.Add(local!);
+                if(Path.GetFileName(item.Name)!=item.Name||item.Name is "." or "..")throw new IOException("文件名不适用于 Windows 导出");
+                if(item.IsDir)
+                {
+                    var remoteTar=DevicePaths.TempFile("export",".tar.gz");
+                    try{await fs.TarGzAsync(item.FullPath,remoteTar);await fs.DownloadAsync(remoteTar,Path.Combine(localDir,item.Name+".tar.gz"));}
+                    finally{await fs.DeleteAsync(new[]{remoteTar},CancellationToken.None);}
+                }
+                else await fs.DownloadAsync(item.FullPath,Path.Combine(localDir,item.Name));
+                completed++;
             }
-            catch(OperationCanceledException){LogLine("EXPORT 已取消后续导出");break;}
-            catch (Exception ex) { LogLine("EXPORT " + ex.Message); }
+            catch(OperationCanceledException){StatusText=$"导出已取消，完成 {completed}/{items.Count} 项";return;}
+            catch(Exception ex){LogLine("EXPORT "+ex.Message);}
         }
-        if (locals.Count == 0) { StatusText = "导出失败：没有取到文件"; return; }
-
-        // 交给 Windows 原生复制：会弹出“正在复制…”的进度窗口
-        DragHint = "正在写入目标文件夹…";
-        var owner = (Avalonia.Application.Current?.ApplicationLifetime
-                     as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)
-                    ?.MainWindow?.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-
-        bool ok;
-        try { ok = Services.NativeShell.CopyWithProgress(owner, locals.ToArray(), localDir, "DashFile 正在导出"); }
-        finally { foreach(var file in locals)try{File.Delete(file);Directory.Delete(Path.GetDirectoryName(file)!);}catch{} }
-        StatusText = ok ? $"已导出 {locals.Count} 项到 {localDir}" : "导出被取消或失败";
-        Toast(ok ? $"已导出 {locals.Count} 项 → {localDir}" : "导出被取消或失败");
-        Perf($"export {locals.Count} items -> {localDir} ok={ok}");
+        StatusText=$"已导出 {completed}/{items.Count} 项到 {localDir}";Toast(StatusText);
     }
 
     [RelayCommand]

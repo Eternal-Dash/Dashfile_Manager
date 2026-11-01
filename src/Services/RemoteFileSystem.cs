@@ -277,33 +277,65 @@ public sealed class RemoteFileSystem
         }
         if (!File.Exists(localFile)) throw new FileNotFoundException("本地文件不存在", localFile);
         if ((File.GetAttributes(localFile) & FileAttributes.ReparsePoint) != 0) throw new IOException("请上传实际文件，而不是文件链接。");
-        var name = Path.GetFileName(localFile);
-        var target=Sh.Join(remoteDir,name);
-        // KernelSU's policy directory forbids creating/renaming siblings. Send file data
-        // through the preferred provider into staging, then retain the existing in-place copy.
-        var inPlace=target==DevicePaths.AdbData+"/ksu" || target.StartsWith(DevicePaths.AdbData+"/ksu/",StringComparison.Ordinal);
-        var tmp = DevicePaths.TempFile("up");
-        var usesStaging=inPlace;
+        var request=new PluginTransferRequest(Serial,UseRoot,_adb.AdbPath,PluginTransferDirection.Upload,Sh.Join(remoteDir,Path.GetFileName(localFile)),localFile);
+        await WithTransferAsync(request,ct,UploadFileCoreAsync).ConfigureAwait(false);
+    }
+
+    private async Task WithTransferAsync(PluginTransferRequest request,CancellationToken ct,Func<PluginTransferRequest,IProgress<PluginTransferProgress>,CancellationToken,Task> transfer)
+    {
+        using var operation=_transfers?.Operations.Begin(request,ct)??new FileTransferOperation(request,ct);
+        Exception? error=null;
+        try{await transfer(request,operation,operation.Token).ConfigureAwait(false);}
+        catch(Exception ex){error=ex;throw;}
+        finally{if(_transfers!=null)_transfers.Operations.End(operation,error);else operation.Finish(error);}
+    }
+
+    private async Task UploadFileCoreAsync(PluginTransferRequest request,IProgress<PluginTransferProgress> progress,CancellationToken ct)
+    {
+        var localFile=request.LocalPath;var target=request.RemotePath;
+        var inPlace=target.StartsWith(DevicePaths.KsuDir+"/",StringComparison.Ordinal);
+        var temp=DevicePaths.TempFile("up");
+        var sibling=Sh.Join(Sh.Parent(target),".dashfile-up-"+Guid.NewGuid().ToString("N")+".partial");
+        var stagingUsed=inPlace;
         try
         {
-            var handled=_transfers!=null && await _transfers.TryTransferAsync(new PluginTransferRequest(Serial,UseRoot,_adb.AdbPath,PluginTransferDirection.Upload,inPlace?tmp:target,localFile),ct).ConfigureAwait(false);
-            if(handled && !inPlace)
-            {
-                var restore=await ShellAsync("restorecon "+Sh.Q(target)+" >/dev/null 2>&1",ct:ct).ConfigureAwait(false);
-                if(!restore.Ok)L("上传已完成；设备未执行 restorecon（可用性由设备决定）。");
-                return;
-            }
+            var routed=request with { RemotePath=inPlace?temp:target };
+            var handled=_transfers!=null&&await _transfers.TryTransferAsync(routed,ct,progress).ConfigureAwait(false);
+            if(handled&&!inPlace)return;
+            var length=new FileInfo(localFile).Length;
             if(!handled)
             {
-                usesStaging=true;
-                L("[push] "+localFile+" -> "+tmp);
-                EnsureOk(await _adb.RunAsync(new[]{"-s",Serial,"push",localFile,tmp},_adb.TransferTimeout,ct).ConfigureAwait(false));
+                stagingUsed=true;progress.Report(new(0,length,"ADB · USB",Path.GetFileName(localFile)));
+                await AdbSyncUpload.PushAsync(_adb,Serial,localFile,temp,n=>progress.Report(new(n,length,"ADB · USB",Path.GetFileName(localFile))),ct).ConfigureAwait(false);
+                var check=await ShellAsync("stat -L -c %s -- "+Sh.Q(temp),request.UseRoot,ct).ConfigureAwait(false);
+                EnsureOk(check);
+                if(!long.TryParse(check.StdOut.Trim(),out var actual)||actual!=length)throw new IOException("上传字节数不完整，未替换目标文件。");
             }
-            var cmd="cp -f "+Sh.Q(tmp)+" "+Sh.Q(target)+" && chmod 644 "+Sh.Q(target)+" && { restorecon "+Sh.Q(target)+" >/dev/null 2>&1; echo DF_OK; }";
-            var result=await ShellAsync(cmd,ct:ct).ConfigureAwait(false);EnsureOk(result);
-            if(!result.StdOut.Contains("DF_OK",StringComparison.Ordinal))throw new IOException("上传失败：目标不可写");
+            ct.ThrowIfCancellationRequested();
+            progress.Report(new(length,length,handled?"双轨快传":"ADB · USB",Path.GetFileName(localFile),"写入目标"));
+            // Commit is a short rename on the same filesystem. A cancellation arriving after
+            // commit starts must wait for its result, preserving a complete target.
+            var commit=inPlace?"cp -f "+Sh.Q(temp)+" "+Sh.Q(target)+" && chmod 644 "+Sh.Q(target):"cp -f "+Sh.Q(temp)+" "+Sh.Q(sibling)+" && chmod 644 "+Sh.Q(sibling)+" && mv -f -- "+Sh.Q(sibling)+" "+Sh.Q(target);
+            commit+=" && echo DF_OK";
+            var done=await ShellAsync(commit,request.UseRoot,CancellationToken.None).ConfigureAwait(false);EnsureOk(done);
+            if(!done.StdOut.Contains("DF_OK",StringComparison.Ordinal))throw new IOException("目标文件提交失败。");
+            progress.Report(new(length,length,handled?"双轨快传":"ADB · USB",Path.GetFileName(localFile),"已完成"));
         }
-        finally {if(usesStaging)try{await ShellAsync("rm -f "+Sh.Q(tmp),ct:CancellationToken.None).ConfigureAwait(false);}catch{}}
+        finally
+        {
+            if(stagingUsed)
+            {
+                try{await RemoveOwnedRemoteTempAsync(temp,request.UseRoot).ConfigureAwait(false);}
+                finally{if(!inPlace)await RemoveOwnedRemoteTempAsync(sibling,request.UseRoot).ConfigureAwait(false);}
+            }
+        }
+    }
+
+    private async Task RemoveOwnedRemoteTempAsync(string path,bool root)
+    {
+        var quoted=Sh.Q(path);
+        var result=await ShellAsync("rm -f -- "+quoted+" && [ ! -e "+quoted+" ] && [ ! -L "+quoted+" ]",root,CancellationToken.None).ConfigureAwait(false);
+        if(!result.Ok)throw new IOException("未完成文件清理失败，请连接设备后删除："+path+"；"+result.All.Trim());
     }
 
     public async Task UploadBytesAsync(byte[] data, string remotePath, CancellationToken ct = default)
@@ -328,27 +360,32 @@ public sealed class RemoteFileSystem
         }
     }
 
-    public async Task DownloadAsync(string remotePath, string localPath, CancellationToken ct = default)
+    public Task DownloadAsync(string remotePath,string localPath,CancellationToken ct=default)
     {
-        var fullPath = Path.GetFullPath(localPath);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        if (_transfers != null && await _transfers.TryTransferAsync(new PluginTransferRequest(Serial, UseRoot, _adb.AdbPath, PluginTransferDirection.Download, remotePath, fullPath), ct).ConfigureAwait(false))
-        {
-            if (!File.Exists(fullPath)) throw new IOException("传输插件未生成目标文件。");
-            return;
-        }
-        var args = new List<string> { "-s", Serial, "exec-out" };
-        if (UseRoot) { args.Add("su"); args.Add("0"); }
-        args.Add("cat"); args.Add("--"); args.Add(remotePath);
-        var partial = fullPath + ".dashfile-" + Guid.NewGuid().ToString("N") + ".partial";
+        var full=Path.GetFullPath(localPath);Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        return WithTransferAsync(new(Serial,UseRoot,_adb.AdbPath,PluginTransferDirection.Download,remotePath,full),ct,DownloadFileCoreAsync);
+    }
+    private async Task DownloadFileCoreAsync(PluginTransferRequest request,IProgress<PluginTransferProgress> progress,CancellationToken ct)
+    {
+        var full=request.LocalPath;
+        if(_transfers!=null&&await _transfers.TryTransferAsync(request,ct,progress).ConfigureAwait(false))
+        {if(!File.Exists(full))throw new IOException("传输插件未生成目标文件。");return;}
+        long total=0;
+        var size=await ShellAsync("stat -L -c %s -- "+Sh.Q(request.RemotePath),request.UseRoot,ct).ConfigureAwait(false);
+        if(size.Ok)long.TryParse(size.StdOut.Trim(),out total);
+        var args=new List<string>{"-s",Serial,"exec-out"};if(request.UseRoot){args.Add("su");args.Add("0");}
+        args.Add("cat");args.Add("--");args.Add(request.RemotePath);
+        var partial=full+".dashfile-"+Guid.NewGuid().ToString("N")+".partial";long copied=0;
         try
         {
-            var result = await _adb.ExecOutToFileAsync(args, partial, ct).ConfigureAwait(false);
-            // Even a nonempty stdout can be an incomplete read. Never replace the destination on failure.
-            if (!result.Ok) throw new IOException("下载失败（exit " + result.ExitCode + "）：" + result.StdErr.Trim());
-            File.Move(partial, fullPath, true);
+            progress.Report(new(0,total,"ADB · USB",Path.GetFileName(full)));
+            var result=await _adb.ExecOutToFileAsync(args,partial,ct,n=>{copied=n;progress.Report(new(n,total,"ADB · USB",Path.GetFileName(full)));}).ConfigureAwait(false);
+            if(!result.Ok)throw new IOException("下载失败（exit "+result.ExitCode+"）："+result.StdErr.Trim());
+            if(total>0&&copied!=total)throw new IOException("下载字节数与设备文件大小不一致，未替换目标文件。");
+            ct.ThrowIfCancellationRequested();File.Move(partial,full,true);
+            progress.Report(new(copied,total>0?total:copied,"ADB · USB",Path.GetFileName(full),"已完成"));
         }
-        finally { try { File.Delete(partial); } catch { } }
+        finally{if(File.Exists(partial))File.Delete(partial);}
     }
 
     // ---------- 文本 ----------

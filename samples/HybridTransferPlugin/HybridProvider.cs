@@ -44,7 +44,13 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
             catch(PluginTransferUnavailableException){throw;}
             catch
             {
-                if(entered&&_context!=null){await _context.DisposeAsync().ConfigureAwait(false);_context=null;_key="";}
+                if(entered&&_context!=null)
+                {
+                    var failed=_context;var pending=failed.Session?.PendingUploadPath;_context=null;_key="";
+                    try{await failed.DisposeAsync().ConfigureAwait(false);}
+                    finally{if(pending!=null)await failed.CleanupPendingUploadAsync(pending).ConfigureAwait(false);}
+                }
+                if(cancel.IsCancellationRequested)throw new OperationCanceledException(cancel.Token);
                 throw;
             }
             finally{if(entered)_serial.Release();Interlocked.Decrement(ref _active);}
@@ -53,7 +59,11 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
     private async Task<HybridSession> Ensure(PluginTransferRequest request,CancellationToken ct)
     {
         var key=request.Serial+"|"+request.UseRoot+"|"+request.AdbPath+"|"+Wifi+"|"+MaxRails;
-        if(_context?.Session!=null&&_context.IsAlive&&_key==key)return _context.Session;
+        if(_context?.Session!=null&&_context.IsAlive&&_key==key)
+        {
+            try{await _context.Session.CheckAlive(ct).ConfigureAwait(false);return _context.Session;}
+            catch(Exception) when(!ct.IsCancellationRequested){log("闲置连接已失效，在传输前重新建立通道。");}
+        }
         if(_context!=null){await _context.DisposeAsync().ConfigureAwait(false);_context=null;}
         try{_context=await AgentContext.Start(request,dataDirectory,Wifi,MaxRails,log,ct).ConfigureAwait(false);_key=key;return _context.Session!;}
         catch(Exception ex) when(ex is not OperationCanceledException){throw new PluginTransferUnavailableException(ex.Message,ex);}

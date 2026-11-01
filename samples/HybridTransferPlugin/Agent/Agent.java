@@ -64,7 +64,7 @@ public final class Agent {
         running = false;
         try { listener.close(); } catch (IOException ignored) { }
         for (Socket s : sockets) try { s.close(); } catch (IOException ignored) { }
-        for (Upload u : uploads.values()) u.temp.delete(); uploads.clear();
+        synchronized(uploads) { for (Upload u : uploads.values()) synchronized(u) { u.closed=true;u.temp.delete(); } uploads.clear(); }
     }
     void serve(SSLSocket socket) {
         try (SSLSocket s = socket;
@@ -72,7 +72,7 @@ public final class Agent {
              DataOutputStream out = new DataOutputStream(new BufferedOutputStream(s.getOutputStream(), 65536))) {
             s.setSoTimeout(60000); s.startHandshake();
             byte[] header = new byte[8]; in.readFully(header);
-            boolean valid = Arrays.equals(header, "DFHFX001".getBytes("US-ASCII")) && MessageDigest.isEqual(in.readUTF().getBytes("UTF-8"), token.getBytes("UTF-8"));
+            boolean valid = Arrays.equals(header, "DFHFX003".getBytes("US-ASCII")) && MessageDigest.isEqual(in.readUTF().getBytes("UTF-8"), token.getBytes("UTF-8"));
             out.writeBoolean(valid); out.flush(); if (!valid) return; s.setSoTimeout(0);
             byte[] work = new byte[BLOCK];
             while (running) {
@@ -135,21 +135,26 @@ public final class Agent {
                 snapshot(f,expected,modified); out.writeBoolean(true); out.writeInt(count); out.write(bytes,0,count); break;
             }
             case 4: {
-                File target = canonical(in.readUTF()); long size = in.readLong(); long modified = in.readLong();
+                String id=in.readUTF();if(!id.matches("[a-f0-9]{32}"))throw new IOException("invalid upload id");
+                File requested=new File(in.readUTF());if(!requested.isAbsolute())throw new IOException("absolute target required");
+                File target=new File(requested.getParentFile().getCanonicalFile(),requested.getName());
+                // Resolve parent aliases, but replace a final symlink rather than writing through it.
+                String targetPath=target.getPath();if(targetPath.startsWith("/dev/")||targetPath.startsWith("/proc/")||targetPath.startsWith("/sys/"))throw new IOException("special target rejected");
+                long size = in.readLong(); long modified = in.readLong();
                 if (size < 0 || size > MAX_FILE || !target.getParentFile().isDirectory() || (target.exists() && !target.isFile())) throw new IOException("invalid upload destination");
                 long available = target.getParentFile().getUsableSpace(); if (available > 0 && available < size + 67108864) throw new IOException("insufficient free space");
-                String id = UUID.randomUUID().toString().replace("-", ""); File temp = new File(target.getParentFile(), ".dashfile-hfx-" + id + ".partial");
+                File temp = new File(target.getParentFile(), ".dashfile-hfx-" + id + ".partial");
                 if (!temp.createNewFile()) throw new IOException("temporary file already exists");
                 try (RandomAccessFile file = new RandomAccessFile(temp,"rw")) { file.setLength(size); }
                 catch (Exception e) { temp.delete(); throw e; }
-                uploads.put(id,new Upload(target,temp,size,modified)); out.writeBoolean(true); out.writeUTF(id); break;
+                synchronized(uploads) { if(!running) { temp.delete();throw new IOException("service stopping"); } uploads.put(id,new Upload(target,temp,size,modified)); } out.writeBoolean(true); out.writeUTF(id); out.writeUTF(temp.getCanonicalPath()); break;
             }
             case 5: {
                 String id = in.readUTF(); long offset = in.readLong(); int count = in.readInt();
                 if (count < 0 || count > BLOCK) throw new IOException("invalid block length");
                 byte[] bytes = work; in.readFully(bytes,0,count); Upload u = upload(id);
                 if (offset < 0 || offset % BLOCK != 0 || offset >= u.size || count != Math.min(BLOCK,u.size-offset)) throw new IOException("invalid upload block range");
-                synchronized (u) { int index = (int)(offset/BLOCK); if (u.blocks.get(index)) throw new IOException("duplicate block"); try (RandomAccessFile file = new RandomAccessFile(u.temp,"rw")) { file.seek(offset); file.write(bytes,0,count); } u.blocks.set(index); }
+                synchronized (u) { if(u.closed)throw new IOException("upload cancelled or committed"); int index = (int)(offset/BLOCK); if (u.blocks.get(index)) throw new IOException("duplicate block"); try (RandomAccessFile file = new RandomAccessFile(u.temp,"rw")) { file.seek(offset); file.write(bytes,0,count); } u.blocks.set(index); }
                 out.writeBoolean(true); break;
             }
             case 6: {
@@ -158,11 +163,11 @@ public final class Agent {
                     if (u.blocks.cardinality() != (u.size + BLOCK - 1)/BLOCK || !hash(u.temp).equalsIgnoreCase(expected)) throw new IOException("incomplete upload or SHA-256 mismatch");
                     Files.move(u.temp.toPath(),u.target.toPath(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
                     if (u.modified > 0) u.target.setLastModified(u.modified);
-                    uploads.remove(id);
+                    u.closed=true;uploads.remove(id);
                 }
                 out.writeBoolean(true); break;
             }
-            case 7: { Upload u = uploads.remove(in.readUTF()); if (u != null) u.temp.delete(); out.writeBoolean(true); break; }
+            case 7: { String id=in.readUTF(); Upload u=uploads.get(id); if(u!=null) { synchronized(u) { u.closed=true;if(u.temp.exists() && !u.temp.delete())throw new IOException("partial cleanup failed: "+u.temp); uploads.remove(id); } } out.writeBoolean(true); break; }
             case 8: {
                 String path = in.readUTF(); long size = in.readLong(); long modified = in.readLong(); File f = regular(path); snapshot(f,size,modified); String sha = hash(f); snapshot(f,size,modified); out.writeBoolean(true); out.writeUTF(sha); break;
             }
@@ -172,7 +177,7 @@ public final class Agent {
     }
     Upload upload(String id) throws IOException { Upload u=uploads.get(id); if(u==null) throw new IOException("upload not found"); return u; }
     static final class Upload {
-        final File target,temp; final long size,modified; final BitSet blocks=new BitSet();
+        final File target,temp; final long size,modified; final BitSet blocks=new BitSet(); boolean closed;
         Upload(File t, File p, long s, long m) { target=t;temp=p;size=s;modified=m; }
     }
 }

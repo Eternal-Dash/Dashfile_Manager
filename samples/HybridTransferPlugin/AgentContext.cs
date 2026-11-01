@@ -72,6 +72,15 @@ public sealed class AgentContext : IAsyncDisposable
         catch {await context.DisposeAsync().ConfigureAwait(false);throw;}
         finally {foreach(var file in Directory.EnumerateFiles(local))try{File.Delete(file);}catch{}try{Directory.Delete(local);}catch{}}
     }
+    public async Task CleanupPendingUploadAsync(string path)
+    {
+        var name=path.Replace('\\','/').Split('/').Last();
+        if(!Regex.IsMatch(name,@"^\.dashfile-hfx-[a-f0-9]{32}\.partial$")||!path.StartsWith('/')||path.Contains('\0'))throw new IOException("拒绝清理未识别的临时文件路径。");
+        var q=Quote(path);var command="rm -f -- "+q+" && [ ! -e "+q+" ] && [ ! -L "+q+" ]";
+        if(_root)command="su -c "+Quote(command);
+        try{await Adb(new[]{"shell",command},CancellationToken.None,15).ConfigureAwait(false);}
+        catch(Exception ex){throw new IOException("未完成文件清理失败，请重新连接设备后删除："+path,ex);}
+    }
     public async ValueTask DisposeAsync()
     {
         if(Session!=null){await Session.DisposeAsync().ConfigureAwait(false);Session=null;}

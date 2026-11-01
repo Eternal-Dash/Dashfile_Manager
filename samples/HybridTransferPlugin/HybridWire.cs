@@ -83,7 +83,7 @@ public sealed class HybridChannel : IDisposable
             tls = new SslStream(socket.GetStream(), false, (_, cert, _, _) => cert != null && CryptographicOperations.FixedTimeEquals(SHA256.HashData(cert.GetRawCertData()),fingerprint));
             await tls.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost="dashfile-hybrid.local",EnabledSslProtocols=SslProtocols.Tls12,CertificateRevocationCheckMode=X509RevocationMode.NoCheck }, ct);
             var channel = new HybridChannel(socket,tls,endpoint.Name);
-            await tls.WriteAsync("DFHFX001"u8.ToArray(),ct); await channel.Wire.WriteUtf(token,ct); await channel.Wire.Reply(ct);
+            await tls.WriteAsync("DFHFX003"u8.ToArray(),ct); await channel.Wire.WriteUtf(token,ct); await channel.Wire.Reply(ct);
             return channel;
         }
         catch { tls?.Dispose();socket.Dispose();throw; }

@@ -17,6 +17,7 @@ public sealed class HybridSession : IAsyncDisposable
     private bool _disposed;
     public string Serial { get; }
     public string Uid { get; }
+    public string? PendingUploadPath { get; private set; }
     public string Channels => _rails.Count == 1 ? "USB 单通道" : string.Join(" + ", _rails.Select(r => r.Name));
     public IReadOnlyDictionary<string,long> Traffic => _rails.ToDictionary(r=>r.Name,r=>Interlocked.Read(ref r.Bytes));
     private HybridSession(HybridChannel control,List<HybridChannel> rails,string serial,string uid) { _control=control;_rails=rails;Serial=serial;Uid=uid; }
@@ -69,6 +70,14 @@ public sealed class HybridSession : IAsyncDisposable
         }
         finally { _gate.Release(); }
     }
+    public async Task CheckAlive(CancellationToken ct)
+    {
+        using var limit=Deadline(ct,3);var w=_control.Wire;
+        await w.WriteByte(1,limit.Token);await w.Reply(limit.Token);
+        if(await w.ReadUtf(limit.Token)!=Serial||await w.ReadUtf(limit.Token)!=Uid||await w.ReadInt(limit.Token)!=BlockSize)throw new IOException("传输服务身份已变化。");
+        var count=await w.ReadInt(limit.Token);if(count<0||count>8)throw new IOException("传输服务响应无效。");
+        for(var i=0;i<count;i++){await w.ReadUtf(limit.Token);await w.ReadUtf(limit.Token);}
+    }
     private async Task<(long Length,long Modified)> Stat(string path,CancellationToken ct)
     {
         using var limit=Deadline(ct);var w=_control.Wire;
@@ -108,7 +117,7 @@ public sealed class HybridSession : IAsyncDisposable
             progress?.Report(new(info.Length,info.Length,Channels,Path.GetFileName(r.LocalPath),"已校验"));
             if(info.Modified>0)try{File.SetLastWriteTimeUtc(destination,DateTimeOffset.FromUnixTimeMilliseconds(info.Modified).UtcDateTime);}catch(ArgumentOutOfRangeException){}
         }
-        finally {try{File.Delete(partial);}catch{}}
+        finally {if(File.Exists(partial))File.Delete(partial);}
     }
     private async Task Upload(PluginTransferRequest r,IProgress<PluginTransferProgress>? progress,CancellationToken ct)
     {
@@ -119,10 +128,19 @@ public sealed class HybridSession : IAsyncDisposable
         var sha=Convert.ToHexString(await SHA256.HashDataAsync(file,ct));string? id=null;
         try
         {
-            using(var limit=Deadline(ct))
+            ct.ThrowIfCancellationRequested();
+            id=Guid.NewGuid().ToString("N");
+            var slash=r.RemotePath.LastIndexOf('/');
+            PendingUploadPath=(slash>=0?r.RemotePath[..(slash+1)]:Path.GetDirectoryName(r.RemotePath)+Path.DirectorySeparatorChar)+".dashfile-hfx-"+id+".partial";
+            // Finish this small setup RPC even if cancellation arrives, so its owned path
+            // is known and cleanup cannot race an incomplete BEGIN frame.
+            using(var limit=Deadline(CancellationToken.None,8))
             {
-                var w=_control.Wire;await w.WriteByte(4,limit.Token);await w.WriteUtf(r.RemotePath,limit.Token);await w.WriteLong(length,limit.Token);await w.WriteLong(modified,limit.Token);await w.Reply(limit.Token);id=await w.ReadUtf(limit.Token);
-                if(id.Length!=32||!id.All(Uri.IsHexDigit))throw new IOException("上传标识无效。");
+                var w=_control.Wire;await w.WriteByte(4,limit.Token);await w.WriteUtf(id,limit.Token);await w.WriteUtf(r.RemotePath,limit.Token);await w.WriteLong(length,limit.Token);await w.WriteLong(modified,limit.Token);await w.Reply(limit.Token);var confirmed=await w.ReadUtf(limit.Token);
+                if(confirmed!=id||id.Length!=32||!id.All(Uri.IsHexDigit))throw new IOException("上传标识无效。");
+                var pending=await w.ReadUtf(limit.Token);
+                if(!pending.EndsWith(".dashfile-hfx-"+id+".partial",StringComparison.Ordinal)||pending.Contains('\0'))throw new IOException("上传临时路径无效。");
+                PendingUploadPath=pending;
             }
             await Blocks(length,async(rail,offset,bytes,token)=>
             {
@@ -132,7 +150,7 @@ public sealed class HybridSession : IAsyncDisposable
             },r.LocalPath,progress,ct);
             progress?.Report(new(length,length,Channels,Path.GetFileName(r.LocalPath),"校验并提交"));
             using(var limit=Deadline(ct,Math.Clamp(length/(16d*1024*1024)+60,60,1800)))
-            { var w=_control.Wire;await w.WriteByte(6,limit.Token);await w.WriteUtf(id,limit.Token);await w.WriteUtf(sha,limit.Token);await w.Reply(limit.Token);id=null; }
+            { var w=_control.Wire;await w.WriteByte(6,limit.Token);await w.WriteUtf(id,limit.Token);await w.WriteUtf(sha,limit.Token);await w.Reply(limit.Token);id=null;PendingUploadPath=null; }
             progress?.Report(new(length,length,Channels,Path.GetFileName(r.LocalPath),"已校验"));
         }
         finally

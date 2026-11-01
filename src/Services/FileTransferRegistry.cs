@@ -12,7 +12,8 @@ public sealed class FileTransferRegistry
     private readonly object _gate = new();
     private readonly List<Registration> _providers = new();
     private int _active;
-    public int ActiveCount => Volatile.Read(ref _active);
+    public FileTransferOperations Operations { get; } = new();
+    public int ActiveCount => Volatile.Read(ref _active) + Operations.ActiveCount;
     public event Action<string>? Status;
     public event Action<PluginTransferProgress>? Progress;
     public IDisposable Register(string owner, IPluginFileTransferProvider provider, int priority)
@@ -21,7 +22,7 @@ public sealed class FileTransferRegistry
         lock (_gate) _providers.Add(item);
         return item;
     }
-    public async Task<bool> TryTransferAsync(PluginTransferRequest request, CancellationToken ct)
+    public async Task<bool> TryTransferAsync(PluginTransferRequest request, CancellationToken ct, IProgress<PluginTransferProgress>? progress=null)
     {
         Registration[] providers;
         lock (_gate) providers = _providers.OrderByDescending(p => p.Priority).ThenBy(p => p.Owner, StringComparer.Ordinal).ToArray();
@@ -32,8 +33,7 @@ public sealed class FileTransferRegistry
             Interlocked.Increment(ref _active);
             try
             {
-                Say(p.Provider.DisplayName + " · " + System.IO.Path.GetFileName(request.LocalPath));
-                await p.Provider.TransferAsync(request, new ForwardProgress(this), ct).ConfigureAwait(false);
+                await p.Provider.TransferAsync(request, new ForwardProgress(this,progress), ct).ConfigureAwait(false);
                 return true;
             }
             catch (PluginTransferUnavailableException ex) { Say("使用 ADB 兼容传输：" + ex.Message); }
@@ -42,8 +42,8 @@ public sealed class FileTransferRegistry
         return false;
     }
     private void Say(string text) { try { Status?.Invoke(text); } catch { } }
-    private sealed class ForwardProgress(FileTransferRegistry owner) : IProgress<PluginTransferProgress>
-    { public void Report(PluginTransferProgress value) { try { owner.Progress?.Invoke(value); } catch { } } }
+    private sealed class ForwardProgress(FileTransferRegistry owner,IProgress<PluginTransferProgress>? local) : IProgress<PluginTransferProgress>
+    { public void Report(PluginTransferProgress value) { local?.Report(value);try { owner.Progress?.Invoke(value); } catch { } } }
     private sealed class Registration(FileTransferRegistry owner, string id, IPluginFileTransferProvider provider, int priority) : IDisposable
     {
         public string Owner { get; } = id;

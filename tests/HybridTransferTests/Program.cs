@@ -13,9 +13,11 @@ if(args.Length>1 && args[0]=="-s" && args[1]=="MOCK")
     if(mode.Contains("stat -L",StringComparison.Ordinal))
     {
         if(mode.Contains("/invalid-size",StringComparison.Ordinal)){Console.Write("unknown");return 0;}
-        Console.Write(mode.Contains("/one-gb",StringComparison.Ordinal)?"1073741824":"256");return 0;
+        Console.Write(mode.Contains("/one-gb",StringComparison.Ordinal)?"1073741824":mode.Contains("/empty",StringComparison.Ordinal)?"0":"256");return 0;
     }
     if(mode=="/sleep"){await Task.Delay(30000);return 0;}
+    if(mode.Contains("rm -f",StringComparison.Ordinal))return 0;
+    if(args.Contains("exec-in")){using var stdin=Console.OpenStandardInput();await stdin.CopyToAsync(Stream.Null);return 0;}
     using var output=Console.OpenStandardOutput();
     if(mode!="/empty")await output.WriteAsync(Enumerable.Range(0,256).Select(x=>(byte)x).ToArray());
     await output.FlushAsync();
@@ -26,10 +28,15 @@ if(args.Length==3 && args[0]=="--device-test")
 {
     // Explicit opt-in only: create/delete generated ordinary files, never raw partitions/reboot.
     var fixture=Path.Combine(Path.GetTempPath(),"DashFile-HybridDevice-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(fixture);
-    await using var provider=new HybridProvider(fixture,Console.WriteLine){ThresholdBytes=TransferThreshold.Megabyte};var deviceRegistry=new FileTransferRegistry();using var registration=deviceRegistry.Register("device-test",provider,100);
+    var recoveredIdle=false;
+    await using var provider=new HybridProvider(fixture,message=>{Console.WriteLine(message);if(message.Contains("闲置连接已失效"))recoveredIdle=true;}){ThresholdBytes=TransferThreshold.Megabyte};var deviceRegistry=new FileTransferRegistry();using var registration=deviceRegistry.Register("device-test",provider,100);
     var fallback=false;deviceRegistry.Status+=message=>{Console.WriteLine(message);if(message.Contains("使用 ADB"))fallback=true;};
     var runner=new AdbRunner(args[1]);using var deadline=new CancellationTokenSource(TimeSpan.FromMinutes(3));
     var source=Path.Combine(fixture,".dashfile-hfx-test-"+Guid.NewGuid().ToString("N")+" 中文.bin");var bytes=new byte[16*1024*1024+173];RandomNumberGenerator.Fill(bytes);await File.WriteAllBytesAsync(source,bytes);
+    await provider.Probe(new(args[2],false,args[1],PluginTransferDirection.Download,"/sdcard/",""),deadline.Token);
+    var agent=(AgentContext?)typeof(HybridProvider).GetField("_context",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(provider);
+    var closedControl=(HybridChannel)typeof(HybridSession).GetField("_control",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(agent!.Session)!;
+    closedControl.Dispose(); // Only the fixture-owned connection: simulate stale transport without waiting 3 minutes.
     foreach(var useRoot in new[]{false,true})
     {
         var fs=new RemoteFileSystem(runner,args[2],useRoot,deviceRegistry);var remoteDir=useRoot?DevicePaths.LocalTmp:"/sdcard/Download";var remote=Sh.Join(remoteDir,Path.GetFileName(source));
@@ -52,6 +59,8 @@ if(args.Length==3 && args[0]=="--device-test")
         }
         finally { await fs.DeleteAsync(new[]{remote},CancellationToken.None); }
     }
+    if(!recoveredIdle)throw new IOException("Stale connection was not rebuilt before file transfer");
+    Console.WriteLine("PASS physical stale control socket is rebuilt before accepting file data");
     Console.WriteLine("PHYSICAL PASS: only generated test files used and removed; no partition reads/writes/reboots.");return 0;
 }
 var passed=0;var failed=0;
@@ -85,6 +94,22 @@ await Reject("streaming ADB timeout terminates child",()=>remoteFs.DownloadAsync
 Check("timeout preserves destination and cleans partial files",await File.ReadAllTextAsync(nativeTarget)=="keep on timeout"&&!Directory.GetFiles(root,"*.partial").Any());
 adbRunner.TransferTimeout=TimeSpan.FromSeconds(5);using(var cancel=new CancellationTokenSource(180))await Reject("streaming ADB cancellation",()=>remoteFs.DownloadAsync("/sleep",nativeTarget,cancel.Token));
 Check("cancel preserves destination and cleans partial files",await File.ReadAllTextAsync(nativeTarget)=="keep on timeout"&&!Directory.GetFiles(root,"*.partial").Any());
+var syncSource=Path.Combine(root,"sync-upload.bin");var syncPayload=new byte[3*1024*1024+53];RandomNumberGenerator.Fill(syncPayload);await File.WriteAllBytesAsync(syncSource,syncPayload);
+await using(var fixture=new SyncFixture(false))
+{
+    long acknowledged=0;await AdbSyncUpload.PushAsync(adbRunner,"MOCK",syncSource,"/data/local/tmp/owned-test",n=>acknowledged=n,ct,fixture.Port);await fixture.Completed;
+    Check("ADB sync upload frames preserve exact binary contents",fixture.Data.SequenceEqual(syncPayload)&&fixture.Target=="/data/local/tmp/owned-test,33152");
+    Check("ADB sync packets are bounded and completion acknowledged",fixture.MaxPacket<=65536&&acknowledged==syncPayload.Length);
+}
+await using(var fixture=new SyncFixture(true))
+{
+    long acknowledged=0;await Reject("ADB sync rejects device failure ACK",()=>AdbSyncUpload.PushAsync(adbRunner,"MOCK",syncSource,"/data/local/tmp/owned-test",n=>acknowledged=n,ct,fixture.Port));
+    Check("ADB sync never reports full success before peer ACK",acknowledged<syncPayload.Length);
+}
+await using(var fixture=new SyncFixture(false))
+{
+    using var stopSync=new CancellationTokenSource();await Reject("ADB sync cancellation closes only its own socket",()=>AdbSyncUpload.PushAsync(adbRunner,"MOCK",syncSource,"/data/local/tmp/owned-test",n=>{if(n>=65536)stopSync.Cancel();},stopSync.Token,fixture.Port));
+}
 var repo=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../"));
 Check("default threshold is 1 GB",TransferThreshold.DefaultBytes==1073741824);
 Check("1 byte below threshold uses ADB",!TransferThreshold.ShouldUseHybrid(TransferThreshold.DefaultBytes-1,TransferThreshold.DefaultBytes));
@@ -127,6 +152,7 @@ try
  await Reject("session rejects wrong device serial",()=>HybridSession.Connect(port,port,"OTHER",false,token,pin,true,3,null,ct,true));
  await using var session=await HybridSession.Connect(port,port,"JVM-TEST",false,token,pin,true,3,Console.WriteLine,ct,true);
  Check("two simulated rails connect",session.Traffic.Count==2);
+ await session.CheckAlive(ct);Check("cached connection preflight verifies live peer",true);
  var bytes=new byte[12*1024*1024+137];RandomNumberGenerator.Fill(bytes);var source=Path.Combine(root,"原始 😀 & 文件.bin");await File.WriteAllBytesAsync(source,bytes);
  var dest=Path.Combine(root,"下载.bin");await File.WriteAllTextAsync(dest,"existing destination");
  await session.Transfer(new("JVM-TEST",false,"none",PluginTransferDirection.Download,source,dest),null,ct);
@@ -145,7 +171,7 @@ try
  using(var channel=await HybridChannel.Open(new("test",IPAddress.Loopback,port),token,pin,ct))
  {
      var w=channel.Wire;var protectedTarget=Path.Combine(root,"bad-hash-target");await File.WriteAllTextAsync(protectedTarget,"keep original");
-     await w.WriteByte(4,ct);await w.WriteUtf(protectedTarget,ct);await w.WriteLong(0,ct);await w.WriteLong(0,ct);await w.Reply(ct);var id=await w.ReadUtf(ct);
+     await w.WriteByte(4,ct);await w.WriteUtf(Guid.NewGuid().ToString("N"),ct);await w.WriteUtf(protectedTarget,ct);await w.WriteLong(0,ct);await w.WriteLong(0,ct);await w.Reply(ct);var id=await w.ReadUtf(ct);_ = await w.ReadUtf(ct);
      await w.WriteByte(6,ct);await w.WriteUtf(id,ct);await w.WriteUtf(new string('0',64),ct);
      await Reject("device rejects SHA-256 mismatch before commit",()=>w.Reply(ct));
      Check("bad hash preserves existing upload destination",await File.ReadAllTextAsync(protectedTarget)=="keep original");
@@ -159,7 +185,15 @@ try
      Check("cancelled multi-rail download preserves destination",await File.ReadAllTextAsync(preserved)=="keep cancelled"&&!Directory.GetFiles(root,"*.partial").Any());
  }
  await using(var usb=await HybridSession.Connect(port,port,"JVM-TEST",false,token,pin,false,3,null,ct,true))
- { Check("WiFi disabled uses a truthful single-rail label",usb.Channels=="USB 单通道"); }
+ {
+   Check("WiFi disabled uses a truthful single-rail label",usb.Channels=="USB 单通道");
+   await using var uploadCancelSession=await HybridSession.Connect(port,port,"JVM-TEST",false,token,pin,true,3,null,ct,true);
+   var cancelTarget=Path.Combine(root,"cancel-upload-target");await File.WriteAllTextAsync(cancelTarget,"keep upload original");
+   using var stopUpload=new CancellationTokenSource();
+   await Reject("cancel multi-rail upload with writes in flight",()=>uploadCancelSession.Transfer(new("JVM-TEST",false,"none",PluginTransferDirection.Upload,cancelTarget,source),new CancelProgress(stopUpload),stopUpload.Token));
+   Check("upload cancellation preserves previous destination",await File.ReadAllTextAsync(cancelTarget)=="keep upload original");
+   Check("aborted data rails cannot recreate a deleted partial",!Directory.GetFiles(root,".dashfile-hfx-*.partial").Any());
+ }
 }
 finally
 {
@@ -178,3 +212,39 @@ sealed class FakeProvider:IPluginFileTransferProvider
 
 sealed class CancelProgress(CancellationTokenSource cancel):IProgress<PluginTransferProgress>
 {public void Report(PluginTransferProgress p){if(p.CompletedBytes>0)cancel.Cancel();}}
+
+sealed class SyncFixture:IAsyncDisposable
+{
+ private readonly System.Net.Sockets.TcpListener _listener=new(IPAddress.Loopback,0);
+ private readonly CancellationTokenSource _stop=new();private readonly MemoryStream _data=new();
+ public int Port {get;} public Task Completed {get;} public byte[] Data=>_data.ToArray(); public string Target="";public int MaxPacket;
+ public SyncFixture(bool fail){_listener.Start();Port=((IPEndPoint)_listener.LocalEndpoint).Port;Completed=Serve(fail);}
+ private async Task Serve(bool fail)
+ {
+  try
+  {
+   using var connection=await _listener.AcceptTcpClientAsync(_stop.Token);var stream=connection.GetStream();var header=new byte[8];
+   for(int i=0;i<2;i++)
+   {
+    await stream.ReadExactlyAsync(header.AsMemory(0,4),_stop.Token);var size=int.Parse(System.Text.Encoding.ASCII.GetString(header,0,4),System.Globalization.NumberStyles.HexNumber);
+    var command=new byte[size];await stream.ReadExactlyAsync(command,_stop.Token);
+    if(System.Text.Encoding.UTF8.GetString(command)!=(i==0?"host:transport:MOCK":"sync:"))throw new IOException("wrong explicit device service");
+    await stream.WriteAsync("OKAY"u8.ToArray(),_stop.Token);
+   }
+   while(true)
+   {
+    await stream.ReadExactlyAsync(header,_stop.Token);var id=System.Text.Encoding.ASCII.GetString(header,0,4);var count=System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
+    if(id=="DONE")
+    {
+     if(fail){var message="device rejected upload"u8.ToArray();"FAIL"u8.CopyTo(header);System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4),(uint)message.Length);await stream.WriteAsync(header,_stop.Token);await stream.WriteAsync(message,_stop.Token);}
+     else {"OKAY"u8.CopyTo(header);System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4),0);await stream.WriteAsync(header,_stop.Token);}break;
+    }
+    if(count>65536)throw new IOException("oversized sync packet");var payload=new byte[count];await stream.ReadExactlyAsync(payload,_stop.Token);
+    if(id=="SEND")Target=System.Text.Encoding.UTF8.GetString(payload);
+    else if(id=="DATA"){MaxPacket=Math.Max(MaxPacket,(int)count);await _data.WriteAsync(payload,_stop.Token);}else throw new IOException("unexpected sync frame");
+   }
+  }
+  catch(Exception ex) when(ex is EndOfStreamException or OperationCanceledException or ObjectDisposedException){}
+ }
+ public async ValueTask DisposeAsync(){_stop.Cancel();_listener.Stop();await Completed;_data.Dispose();_stop.Dispose();}
+}
