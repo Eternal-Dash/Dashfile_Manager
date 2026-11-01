@@ -5,7 +5,7 @@
 
 | 文件 | 插件 | 说明 |
 |---|---|---|
-| `com.dashfile.hybridtransfer.dfp` | 双轨快传 | DashFile ≥1.2.1 / API3；默认接管上传下载，USB + Wi-Fi，原项目 HybridFileXfer / 原作者 weixiansen574 |
+| `com.dashfile.hybridtransfer.dfp` | 双轨快传 | DashFile ≥1.1.0 / API3；默认接管上传下载，USB + Wi-Fi，原项目 HybridFileXfer / 原作者 weixiansen574 |
 | `com.dashfile.fastbootflash.dfp` | Fastboot刷写 | DashFile ≥1.1.0 / API2；分区计划、刷写、能力检查后回读与备份 |
 | `com.dashfile.avbstudio.dfp` | AVB 工作台 | AVB 镜像解析与重签、哈希树、VBMeta 构建、整树链式 / 非链式重建、A/B 批处理、目录扫描 |
 

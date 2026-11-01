@@ -4,5 +4,5 @@
   "tagline": "USB + Wi-Fi，多通道合力传输", "license": "GPL-3.0-or-later",
   "tags": ["USB + Wi-Fi", "SHA-256", "原作者 weixiansen574"], "icon": "⇄",
   "assembly": "HybridTransferPlugin.dll", "entryType": "HybridTransferPlugin.HybridPlugin",
-  "apiVersion": 3, "minHostVersion": "1.2.1"
+  "apiVersion": 3, "minHostVersion": "1.2.0"
 }
