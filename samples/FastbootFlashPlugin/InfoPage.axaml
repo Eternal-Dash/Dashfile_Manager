@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FastbootFlashPlugin.InfoPage" x:CompileBindings="False">
+  <UserControl.Styles>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource PanelAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource StrokeSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="18,16"/>
+    </Style>
+    <Style Selector="TextBlock.k"><Setter Property="Foreground" Value="{DynamicResource TextMuted}"/><Setter Property="FontSize" Value="12.5"/></Style>
+    <Style Selector="TextBlock.v"><Setter Property="Foreground" Value="{DynamicResource TextMain}"/><Setter Property="FontSize" Value="12.5"/></Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
+
+      <!-- 运行状态 -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Ellipse Width="9" Height="9" Fill="{DynamicResource Ok}" VerticalAlignment="Center"/>
+            <TextBlock Text="插件正在运行" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+          </StackPanel>
+          <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="{DynamicResource TextSub}"
+                     Text="已在顶部导航栏添加「分区刷写」子页。设备检测、分区表、镜像刷写、回读与备份都在那个页面里，这里只放说明。"/>
+        </StackPanel>
+      </Border>
+
+      <!-- 插件信息 -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Text="插件信息" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="20" RowSpacing="9">
+            <TextBlock Grid.Row="0" Classes="k" Text="名称"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Classes="v" Text="DashFile - 分区刷写"/>
+            <TextBlock Grid.Row="1" Classes="k" Text="插件 ID"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="v" Text="com.dashfile.fastbootflash"/>
+            <TextBlock Grid.Row="2" Classes="k" Text="版本"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Classes="v" Text="1.0.2"/>
+            <TextBlock Grid.Row="3" Classes="k" Text="作者"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" Classes="v" Text="EternalDash"/>
+            <TextBlock Grid.Row="4" Classes="k" Text="插件 API"/>
+            <TextBlock Grid.Row="4" Grid.Column="1" Classes="v" Text="v2（宿主 1.1.0 及以上）"/>
+            <TextBlock Grid.Row="5" Classes="k" Text="许可"/>
+            <TextBlock Grid.Row="5" Grid.Column="1" Classes="v" Text="GPL-3.0-or-later"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- 能力说明 -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Text="这个插件能做什么" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
+          <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="{DynamicResource TextSub}"
+                     Text="枚举设备分区并显示容量与槽位；单分区刷写原始 / Sparse 镜像；刷 AOSP Fastboot update 整包或镜像目录；把选中或全部分区回读成带清单与校验的备份包，并在同机型上还原。所有写入都要先出计划、再二次确认。"/>
+          <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                     Text="操作入口在顶部导航栏「分区刷写」。命令行执行、擦除、重启至等入口也在那个页面里。"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

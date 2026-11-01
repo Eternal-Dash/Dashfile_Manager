@@ -59,7 +59,14 @@ public partial class MainViewModel : ObservableObject
         PluginPages.Clear();
         PluginPageView = null;
         if (value != null)
-            foreach (var page in value.Pages) PluginPages.Add(page);
+        {
+            // 详情页只放"说明/信息"类页面：已经进顶部导航的功能页不该在这里再出现一次，
+            // 否则同一个刷写界面会在两个入口各开一份，会话和状态也跟着分叉。
+            // 没有说明页的插件（例如只有一个工作页）保持原样，仍然显示它的页面。
+            var pages = value.Pages.Where(x => !x.Source.ShowInMainNavigation).ToList();
+            if (pages.Count == 0) pages = value.Pages.ToList();
+            foreach (var page in pages) PluginPages.Add(page);
+        }
         OnPropertyChanged(nameof(HasPluginPages));
         OnPropertyChanged(nameof(ShowPluginTabs));
         RefreshPluginGlobalActions();
