@@ -33,17 +33,17 @@
           <TextBlock Text="插件信息" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
           <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="20" RowSpacing="9">
             <TextBlock Grid.Row="0" Classes="k" Text="名称"/>
-            <TextBlock Grid.Row="0" Grid.Column="1" Classes="v" Text="DashFile - 分区刷写"/>
+            <TextBlock Grid.Row="0" Grid.Column="1" Classes="v" Text="{Binding Name}"/>
             <TextBlock Grid.Row="1" Classes="k" Text="插件 ID"/>
-            <TextBlock Grid.Row="1" Grid.Column="1" Classes="v" Text="com.dashfile.fastbootflash"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="v" Text="{Binding Id}"/>
             <TextBlock Grid.Row="2" Classes="k" Text="版本"/>
-            <TextBlock Grid.Row="2" Grid.Column="1" Classes="v" Text="1.0.2"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" Classes="v" Text="{Binding Version}"/>
             <TextBlock Grid.Row="3" Classes="k" Text="作者"/>
-            <TextBlock Grid.Row="3" Grid.Column="1" Classes="v" Text="EternalDash"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" Classes="v" Text="{Binding Author}"/>
             <TextBlock Grid.Row="4" Classes="k" Text="插件 API"/>
-            <TextBlock Grid.Row="4" Grid.Column="1" Classes="v" Text="v2（宿主 1.1.0 及以上）"/>
+            <TextBlock Grid.Row="4" Grid.Column="1" Classes="v" Text="{Binding Compatibility}"/>
             <TextBlock Grid.Row="5" Classes="k" Text="许可"/>
-            <TextBlock Grid.Row="5" Grid.Column="1" Classes="v" Text="GPL-3.0-or-later"/>
+            <TextBlock Grid.Row="5" Grid.Column="1" Classes="v" Text="{Binding License}"/>
           </Grid>
         </StackPanel>
       </Border>

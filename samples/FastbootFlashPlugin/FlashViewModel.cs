@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -44,6 +44,8 @@ public partial class FlashViewModel : ObservableObject
     private readonly StringBuilder _pendingLog = new();
     private bool _logPosted;
 
+    internal event Action<FlashSection>? SectionRequested;
+
     public ObservableCollection<DeviceTarget> Devices { get; } = new();
     public ObservableCollection<PartitionRow> Partitions { get; } = new();
     public string[] Slots { get; } = { "current", "a", "b" };
@@ -61,7 +63,6 @@ public partial class FlashViewModel : ObservableObject
     [ObservableProperty] private bool _allowCritical;
     [ObservableProperty] private bool _zipBackup = true;
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private bool _isLogOpen;
     [ObservableProperty] private int _deviceModeIndex;
     public string[] DeviceModes { get; } = { "自动选择单台", "手动指定设备" };
     public bool AutoDetect => DeviceModeIndex == 0;
@@ -77,12 +78,6 @@ public partial class FlashViewModel : ObservableObject
     public bool CanBackupDevice => CanUsePartitions && (_details?.Target.Transport == Transport.AdbRoot || _details?.Fetch == FetchSupport.Supported);
     public string ReadbackHint => !HasDetails ? "读取设备信息后确认回读能力。" : _details?.Target.Transport == Transport.AdbRoot ? "ADB Root 回读：需要 Root 授权，建议在未挂载分区的 Recovery 中备份。" : _details?.Fetch == FetchSupport.Supported ? "设备已报告 Fastboot fetch 回读能力。" : "该 Bootloader 不支持 fetch 回读；请自行进入 Root Android / Recovery 后选择 ADB 设备。";
     public bool CanWriteDevice => CanUsePartitions && _details?.Target.Transport == Transport.Fastboot && _details.Unlocked != false;
-    [ObservableProperty] private bool _isBasicsOpen = true;
-    [ObservableProperty] private bool _isPackageOpen = false;
-    [ObservableProperty] private bool _isImageOpen = false;
-    [ObservableProperty] private bool _isBackupOpen = false;
-    [ObservableProperty] private bool _isAdvancedOpen = false;
-    [ObservableProperty] private bool _isPlanOpen;
     [ObservableProperty] private string _status = "接上设备后点「检测设备」，再点「读取分区」。所有操作都绑定所选序列号。";
     [ObservableProperty] private string _deviceSummary = "尚未读取设备信息";
     [ObservableProperty] private string _planText = "先生成预览，核对目标、槽位与文件后再执行。";
@@ -195,7 +190,7 @@ public partial class FlashViewModel : ObservableObject
     {
         try { await action(ct); Status = "操作完成。"; ProgressText = "已完成"; }
         catch (OperationCanceledException) { Status = "已停止。已完成的写入不会回滚；回读失败的结果保留为不完整备份。"; AddLog(Status); }
-        catch (Exception ex) { Status = ex.Message; IsLogOpen = true; ProgressText = "任务未完成"; AddLog("错误：" + ex.Message); _host.Log.Error(ex.Message); }
+        catch (Exception ex) { Status = ex.Message; SectionRequested?.Invoke(FlashSection.Log); ProgressText = "任务未完成"; AddLog("错误：" + ex.Message); _host.Log.Error(ex.Message); }
         finally
         {
             FlushLog();
@@ -260,13 +255,13 @@ public partial class FlashViewModel : ObservableObject
     private void ShowPlan(FlashPlan plan)
     {
         _plan = plan;
-        IsPlanOpen = true;
         var steps = string.Join(Environment.NewLine + Environment.NewLine,
             plan.Steps.Select((s, i) => (i + 1) + ". " + s.Partition + " ← " + Path.GetFileName(s.Image.Path) +
                 Environment.NewLine + "展开大小 " + Partition.FormatBytes(s.Image.ExpandedSize) + " · SHA-256 " + s.Image.Sha256));
         PlanText = "设备：" + plan.Target.Serial + "  /  " + plan.Product + Environment.NewLine + plan.Notes +
                    Environment.NewLine + Environment.NewLine + steps;
         OnPropertyChanged(nameof(HasPlan));
+        SectionRequested?.Invoke(FlashSection.Plan);
         AddLog("计划已生成，共 " + plan.Steps.Count + " 项。尚未写入设备。");
     }
 
@@ -369,15 +364,13 @@ public partial class FlashViewModel : ObservableObject
         OnPropertyChanged(nameof(CatalogSummary)); OnPropertyChanged(nameof(SelectedCount));
     }
 
-    [RelayCommand] private void ToggleLog() => IsLogOpen = !IsLogOpen;
-
     [RelayCommand] private Task RunCommandAsync() => Run(async ct =>
     {
         var target = Target();
         var cmd = CommandText.Trim();
         if (cmd.Length == 0) throw new InvalidDataException("请先输入查询命令，例如 getvar all。");
         InvalidatePlan();
-        IsLogOpen = true;
+        SectionRequested?.Invoke(FlashSection.Log);
         var ok = await _host.Ui.ConfirmAsync("执行 Fastboot 查询",
             "设备 " + target.Serial + Environment.NewLine + Environment.NewLine + "fastboot " + cmd +
             Environment.NewLine + Environment.NewLine + "仅支持 getvar / oem device-info 查询。写入、擦除、解锁及设备重选参数均不由此入口执行。",

@@ -1,50 +1,72 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using System.ComponentModel;
+
 namespace FastbootFlashPlugin;
+
+internal enum FlashSection { Plan, Log }
+
 public sealed partial class FlashPage : UserControl
 {
+    private readonly Grid _accordion;
+    private readonly Expander[] _sections;
+    private bool _updating;
     private FlashViewModel? _session;
 
     public FlashPage()
     {
         AvaloniaXamlLoader.Load(this);
-        var viewport = this.FindControl<ScrollViewer>("Viewport")!;
-        var workspace = this.FindControl<Grid>("Workspace")!;
-        // Size only from the parent's viewport. Never feed DesiredSize/MinHeight back into layout.
-        viewport.PropertyChanged += (_, e) =>
-        {
-            if (e.Property != ScrollViewer.ViewportProperty) return;
-            var height = Math.Max(560, viewport.Viewport.Height);
-            if (Math.Abs(workspace.Height - height) > 0.5) workspace.Height = height;
-        };
+        _accordion = this.FindControl<Grid>("Accordion")!;
+        _sections = _accordion.Children.OfType<Expander>().ToArray();
+        foreach (var section in _sections)
+            section.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == Expander.IsExpandedProperty && !_updating)
+                    ArrangeSections(section.IsExpanded ? section : null);
+            };
+        ArrangeSections(_sections[0]);
         AttachedToVisualTree += (_, _) => Observe(DataContext as FlashViewModel);
         DetachedFromVisualTree += (_, _) => Observe(null);
-        DataContextChanged += (_, _) => { if (this.GetVisualRoot() != null) Observe(DataContext as FlashViewModel); };
+        DataContextChanged += (_, _) =>
+        {
+            if (this.GetVisualRoot() != null) Observe(DataContext as FlashViewModel);
+        };
+    }
+
+    private void ArrangeSections(Expander? selected)
+    {
+        _updating = true;
+        try
+        {
+            for (var index = 0; index < _sections.Length; index++)
+            {
+                var expanded = ReferenceEquals(_sections[index], selected);
+                _sections[index].IsExpanded = expanded;
+                var fill = expanded && _sections[index].Name is "PlanSection" or "LogSection";
+                _accordion.RowDefinitions[index].Height = fill ? GridLength.Star : GridLength.Auto;
+            }
+            var fillsAvailableSpace = selected?.Name is "PlanSection" or "LogSection";
+            _accordion.RowDefinitions[^1].Height = fillsAvailableSpace ? new GridLength(0) : GridLength.Star;
+        }
+        finally { _updating = false; }
     }
 
     private void Observe(FlashViewModel? session)
     {
-        if (_session != null) _session.PropertyChanged -= OnSessionChanged;
+        if (_session != null) _session.SectionRequested -= OpenSection;
         _session = session;
-        if (_session != null) _session.PropertyChanged += OnSessionChanged;
+        if (_session != null) _session.SectionRequested += OpenSection;
     }
 
-    private void OnSessionChanged(object? sender, PropertyChangedEventArgs e)
+    private void OpenSection(FlashSection section)
     {
-        var section = e.PropertyName switch
-        {
-            nameof(FlashViewModel.HasPlan) when _session?.HasPlan == true => "PlanSection",
-            nameof(FlashViewModel.IsLogOpen) when _session?.IsLogOpen == true => "LogSection",
-            _ => null
-        };
-        if (section == null) return;
         Dispatcher.UIThread.Post(() =>
         {
-            var target = this.FindControl<Expander>(section);
-            if (IsEffectivelyVisible && target?.IsEffectivelyVisible == true) target.BringIntoView();
+            if (!IsEffectivelyVisible) return;
+            var name = section == FlashSection.Plan ? "PlanSection" : "LogSection";
+            ArrangeSections(this.FindControl<Expander>(name));
         }, DispatcherPriority.Loaded);
     }
 }

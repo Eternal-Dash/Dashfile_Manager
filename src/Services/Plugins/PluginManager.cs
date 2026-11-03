@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,6 +32,26 @@ public sealed class PluginManager
     private readonly List<IPluginEventSink> _sinks = new();
     private readonly Dictionary<string, bool> _enabledState = new(StringComparer.OrdinalIgnoreCase);
     private bool _loading;
+    private int _lifecycleBusy;
+
+    // Loading yields to the UI; reject overlapping mutations before changing files
+    // or descriptors. Package installation uses the core loader under the same lease.
+    private IDisposable EnterLifecycle()
+    {
+        if (Interlocked.CompareExchange(ref _lifecycleBusy, 1, 0) != 0)
+            throw new InvalidOperationException("插件正在加载或更新，请稍后重试。");
+        return new LifecycleLease(this);
+    }
+
+    private sealed class LifecycleLease(PluginManager owner) : IDisposable
+    {
+        private PluginManager? _owner = owner;
+        public void Dispose()
+        {
+            var manager = Interlocked.Exchange(ref _owner, null);
+            if (manager != null) Volatile.Write(ref manager._lifecycleBusy, 0);
+        }
+    }
 
     public PluginManager(
         string hostVersion,
@@ -79,6 +99,12 @@ public sealed class PluginManager
     /// <summary>扫描目录并加载所有已启用的插件。可重复调用（会先卸载旧插件）。</summary>
     public async Task LoadAllAsync()
     {
+        using var lease = EnterLifecycle();
+        await LoadAllCoreAsync().ConfigureAwait(true);
+    }
+
+    private async Task LoadAllCoreAsync()
+    {
         if (_loading) return;
         _loading = true;
         try
@@ -87,7 +113,7 @@ public sealed class PluginManager
             _plugins.Clear();
             _sinks.Clear();
 
-            var manifests = Scan();
+            var manifests = await Task.Run(Scan).ConfigureAwait(true);
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in manifests)
             {
@@ -133,6 +159,7 @@ public sealed class PluginManager
 
     public async Task EnableAsync(string id)
     {
+        using var lease = EnterLifecycle();
         var descriptor = Find(id);
         if (descriptor == null) return;
 
@@ -151,6 +178,7 @@ public sealed class PluginManager
 
     public async Task DisableAsync(string id)
     {
+        using var lease = EnterLifecycle();
         var descriptor = Find(id);
         if (descriptor == null) return;
 
@@ -167,6 +195,7 @@ public sealed class PluginManager
 
     public async Task ReloadOneAsync(string id)
     {
+        using var lease = EnterLifecycle();
         var descriptor = Find(id);
         if (descriptor == null) return;
 
@@ -295,11 +324,7 @@ public sealed class PluginManager
                     manifest.Id = dirName;
                 }
 
-                if (manifest.ApiVersion > PluginApiInfo.Version)
-                    error ??= $"插件需要 API v{manifest.ApiVersion}，当前宿主只支持 v{PluginApiInfo.Version}";
-                else if (!string.IsNullOrWhiteSpace(manifest.MinHostVersion) &&
-                         !VersionAtLeast(_hostVersion, manifest.MinHostVersion!))
-                    error ??= $"插件要求 DashFile ≥ {manifest.MinHostVersion}，当前 {_hostVersion}";
+                error ??= CompatibilityError(manifest);
 
                 var assemblyPath = ResolveAssemblyPath(dir, manifest, ref error);
                 var descriptor = new PluginDescriptor(manifest, dir, assemblyPath);
@@ -308,6 +333,16 @@ public sealed class PluginManager
         }
 
         return result;
+    }
+
+    private string? CompatibilityError(PluginManifest manifest)
+    {
+        if (manifest.ApiVersion > PluginApiInfo.Version)
+            return $"插件需要 API v{manifest.ApiVersion}，当前宿主只支持 v{PluginApiInfo.Version}";
+        if (!string.IsNullOrWhiteSpace(manifest.MinHostVersion) &&
+            !VersionAtLeast(_hostVersion, manifest.MinHostVersion))
+            return $"插件要求 DashFile ≥ {manifest.MinHostVersion}，当前 {_hostVersion}";
+        return null;
     }
 
     private static string ResolveAssemblyPath(string dir, PluginManifest manifest, ref string? error)
@@ -367,11 +402,13 @@ public sealed class PluginManager
 
     /// <summary>
     /// 安装 .dfp（zip）插件包。只接受 .dfp；已有同 id 插件时必须显式 replaceExisting。
-    /// 返回安装后的描述符（加载失败时 State=Error，但仍返回，方便 UI 展示原因）。
+    /// 新装失败时返回错误描述符。覆盖失败时恢复旧版并报告错误。
     /// </summary>
     public async Task<PluginDescriptor?> InstallPackageAsync(string packagePath, bool replaceExisting,
         CancellationToken cancellationToken = default)
     {
+        using var lease = EnterLifecycle();
+        cancellationToken.ThrowIfCancellationRequested();
         if (!PluginPackage.IsPackage(packagePath))
             throw new InvalidOperationException("只接受 .dfp 插件包");
         if (!File.Exists(packagePath))
@@ -387,11 +424,17 @@ public sealed class PluginManager
         string? backup = null;
         string? target = null;
         var targetOwned = false;
+        var replacing = false;
+        string? addedEnabledState = null;
 
         try
         {
             var packageRoot = PluginPackage.Extract(packagePath, temp);
             var manifest = PluginPackage.ReadManifest(packageRoot);
+            if (IsReservedDirectory(manifest.Id))
+                throw new InvalidOperationException("插件 id 使用了安装器保留的名称");
+            if (CompatibilityError(manifest) is { } incompatible)
+                throw new InvalidOperationException(incompatible);
             target = Path.Combine(root, manifest.Id);
 
             var existing = Find(manifest.Id);
@@ -399,7 +442,13 @@ public sealed class PluginManager
             {
                 if (!replaceExisting)
                     throw new InvalidOperationException($"插件 {manifest.Id} 已安装；如需覆盖请选择替换。");
-                if (existing != null) await UnloadOneAsync(existing).ConfigureAwait(true);
+                replacing = true;
+                if (existing != null)
+                {
+                    if (_enabledState.TryAdd(existing.Id, existing.Enabled))
+                        addedEnabledState = existing.Id;
+                    await UnloadOneAsync(existing).ConfigureAwait(true);
+                }
                 if (Directory.Exists(target))
                 {
                     backup = target + ".bak-" + Guid.NewGuid().ToString("N");
@@ -407,19 +456,17 @@ public sealed class PluginManager
                 }
             }
 
-            // 确保没有残留目录（大小写不敏感文件系统上 id 可能只差大小写）
-            if (Directory.Exists(target) && !PathsEqual(target, packageRoot))
-                Directory.Delete(target, recursive: true);
+            // 若另一个进程抢先创建了目标目录，移动失败并回滚，避免删除对方的文件。
+            Directory.Move(packageRoot, target);
+            targetOwned = true;
 
-            if (!PathsEqual(target, packageRoot))
-            {
-                Directory.Move(packageRoot, target);
-                targetOwned = true;
-            }
-
-            await LoadAllAsync().ConfigureAwait(true);
+            await LoadAllCoreAsync().ConfigureAwait(true);
             var installed = Find(manifest.Id);
+            if (replacing && (installed is null || installed.State == PluginLoadState.Error ||
+                              !PathsEqual(installed.Directory, target)))
+                throw new InvalidOperationException("新插件未能加载：" + (installed?.Error ?? manifest.Id));
             _log?.Invoke($"插件安装：{manifest.Id} <- {packagePath}");
+            if (addedEnabledState != null) SaveState();
             if (backup != null)
             {
                 try { Directory.Delete(backup, recursive: true); } catch { }
@@ -429,27 +476,37 @@ public sealed class PluginManager
         }
         catch
         {
-            // 安装失败尽量恢复旧版本
+            if (addedEnabledState != null) _enabledState.Remove(addedEnabledState);
+            string? rejected = null;
             try
             {
                 if (targetOwned && target != null && Directory.Exists(target))
-                    Directory.Delete(target, recursive: true);
-                // CA1508 会把这里判成"backup 恒为 null"：它看不到 await LoadAllAsync() 也会抛，
-                // 而那条路径上旧版本已经改名到 backup、新版本已经就位 —— 这里必须回滚。
+                {
+                    // An unloaded assembly can still hold a Windows file handle.
+                    // Move it out of the scan path before trying to delete it.
+                    rejected = target + ".deleted-" + Guid.NewGuid().ToString("N");
+                    Directory.Move(target, rejected);
+                }
 #pragma warning disable CA1508
                 if (backup != null && Directory.Exists(backup) && target != null)
                     Directory.Move(backup, target);
 #pragma warning restore CA1508
+                if (replacing || targetOwned)
+                    await LoadAllCoreAsync().ConfigureAwait(true);
             }
-            catch { }
+            catch (Exception rollbackError)
+            {
+                _log?.Invoke("插件安装回滚未完整完成：" + rollbackError.Message + "；备份路径：" + backup);
+            }
+            finally
+            {
+                try { if (rejected != null && Directory.Exists(rejected)) Directory.Delete(rejected, recursive: true); } catch { }
+            }
             throw;
         }
         finally
         {
-            if (backup != null)
-            {
-                try { if (Directory.Exists(backup)) Directory.Delete(backup, recursive: true); } catch { }
-            }
+            // A failed rollback must never delete the only surviving old version.
             try { if (Directory.Exists(temp)) Directory.Delete(temp, recursive: true); } catch { }
         }
     }
@@ -457,6 +514,9 @@ public sealed class PluginManager
     /// <summary>卸载插件：先停用/卸载 ALC，再删目录；可选删除插件数据（设置/缓存）。</summary>
     public async Task UninstallAsync(string id, bool deleteData, CancellationToken cancellationToken = default)
     {
+        using var lease = EnterLifecycle();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!PluginPackage.IsSafeId(id)) throw new InvalidOperationException("插件 id 不合法");
         var descriptor = Find(id);
         if (descriptor == null)
         {
@@ -568,15 +628,18 @@ public sealed class PluginManager
         try
         {
             descriptor.LoadContext = new PluginLoadContext(descriptor.AssemblyPath);
-            descriptor.Assembly = descriptor.LoadContext.LoadFromAssemblyPath(descriptor.AssemblyPath);
-
-            var type = !string.IsNullOrWhiteSpace(descriptor.Manifest.EntryType)
-                ? descriptor.Assembly.GetType(descriptor.Manifest.EntryType, throwOnError: false)
-                : null;
-
-            type ??= descriptor.Assembly.GetTypes().FirstOrDefault(t =>
-                typeof(IDashFilePlugin).IsAssignableFrom(t) &&
-                !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null);
+            var (assembly, type) = await Task.Run(() =>
+            {
+                var loaded = descriptor.LoadContext.LoadFromAssemblyPath(descriptor.AssemblyPath);
+                var entry = !string.IsNullOrWhiteSpace(descriptor.Manifest.EntryType)
+                    ? loaded.GetType(descriptor.Manifest.EntryType, throwOnError: false)
+                    : null;
+                entry ??= loaded.GetTypes().FirstOrDefault(t =>
+                    typeof(IDashFilePlugin).IsAssignableFrom(t) &&
+                    !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null);
+                return (loaded, entry);
+            }).ConfigureAwait(true);
+            descriptor.Assembly = assembly;
 
             if (type == null)
                 throw new InvalidOperationException("找不到实现 IDashFilePlugin 的公共入口类型");

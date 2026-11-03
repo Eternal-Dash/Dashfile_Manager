@@ -53,6 +53,30 @@ public partial class MainWindow : Window
     private MainViewModel? _subscribedVm;
     private PropertyChangedEventHandler? _vmPropertyHandler;
 
+    private async void OnCopyDeviceSummary(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is not { } vm || Clipboard is not { } clipboard) return;
+        var fields = new (string Label, string Value)[]
+        {
+            ("设备名称", vm.DevModel), ("设备状态", vm.DevStatus), ("连接类型", vm.DevLink),
+            ("序列号", vm.DevSerial), ("设备代号", vm.DevCodename), ("Android", vm.DevAndroid),
+            ("操作系统", vm.DevOs), ("系统版本", vm.DevVersion), ("内核版本", vm.DevKernel),
+            ("构建日期", vm.DevBuildDate), ("当前槽位", vm.DevSlot), ("解锁状态", vm.DevUnlock),
+            ("SELinux", vm.DevSelinux), ("CPU 厂家", vm.DevCpuVendor), ("CPU 型号", vm.DevCpuModel),
+            ("CPU 名称", vm.DevCpuName), ("CPU 核心", vm.DevCores), ("系统架构", vm.DevRing),
+            ("设备内存", vm.DevRam), ("内存使用", vm.RamText), ("存储", vm.DevStorage),
+            ("电池", vm.DevBatteryText), ("屏幕分辨率", vm.DevScreen), ("Root", vm.RootImpl),
+            ("管理器版本", vm.ManagerVersion), ("工作模式", vm.ManagerMode),
+            ("授权数量", vm.SuperuserCount), ("模块数量", vm.ModuleCount)
+        };
+        try
+        {
+            await clipboard.SetTextAsync(string.Join(Environment.NewLine, fields.Select(f => $"{f.Label}：{f.Value}")));
+            vm.Toast("设备参数已复制");
+        }
+        catch { vm.Toast("未能写入系统剪贴板，请重试"); }
+    }
+
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)

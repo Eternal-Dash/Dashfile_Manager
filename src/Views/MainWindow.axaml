@@ -103,13 +103,21 @@
     <!-- ================= 设备信息页 ================= -->
     <Grid x:Name="DevPage" IsVisible="{Binding IsDeviceTab}" Margin="16,12" RowDefinitions="Auto,*" RowSpacing="12">
 
+      <Grid.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="复制全部设备参数" Click="OnCopyDeviceSummary"/>
+          <MenuItem Header="查看 Root 授权应用" Command="{Binding ShowRootAppsCommand}"/>
+          <MenuItem Header="查看模块" Command="{Binding ShowModulesTabCommand}"/>
+        </ContextMenu>
+      </Grid.ContextMenu>
+
       <!-- 标题行：按钮贴窗口最右 -->
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBlock Text="设备信息" FontSize="18" FontWeight="SemiBold"
                    Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
-        <Button Grid.Column="1" Classes="tool" Content="重新读取" FontSize="13.5" Padding="14,5"
+        <Button Grid.Column="1" Classes="tool" Content="重新读取" FontSize="13.5" Width="94" Height="32" Padding="8,4" HorizontalContentAlignment="Center"
                 Command="{Binding RefreshDeviceInfoCommand}"/>
-        <Button Grid.Column="2" Classes="tool" Content="重置连接" FontSize="13.5" Padding="14,5"
+        <Button Grid.Column="2" Classes="tool" Content="重置连接" FontSize="13.5" Width="94" Height="32" Padding="8,4" HorizontalContentAlignment="Center"
                 Command="{Binding ResetConnectionCommand}"/>
       </Grid>
 
@@ -419,11 +427,13 @@
       </Grid>
     </Grid>
 
-    <DockPanel Background="{DynamicResource ContentSurface}" x:Name="FilePage" IsVisible="{Binding IsFileTab}" LastChildFill="True"
+    <Border IsVisible="{Binding IsFileTab}" Margin="16,12" Background="{DynamicResource PanelAlt}"
+            BorderBrush="{DynamicResource Hairline}" BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" ClipToBounds="True">
+    <DockPanel Background="Transparent" x:Name="FilePage" IsVisible="{Binding IsFileTab}" LastChildFill="True"
                DragDrop.AllowDrop="True" DragDrop.DragOver="OnPageDragOver"
                DragDrop.Drop="OnPageDrop" DragDrop.DragLeave="OnPageDragLeave">
 
-      <Border Classes="bar" DockPanel.Dock="Top" Background="{DynamicResource Bg}" Padding="14,8"
+      <Border Classes="bar" DockPanel.Dock="Top" Background="Transparent" Padding="14,8"
               BorderThickness="0,0,0,1" BorderBrush="{DynamicResource StrokeSoft}">
         <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
           <TextBlock Text="当前路径" Classes="sub" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -457,8 +467,8 @@
                     IsVisible="{Binding !IsPathEditing}"/>
           </Panel>
           <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-            <Button Classes="icon" Content="↑" Command="{Binding GoUpCommand}" ToolTip.Tip="返回上一级"/>
-            <Button Classes="icon" Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="刷新"/>
+            <Button Classes="icon"  Command="{Binding GoUpCommand}" ToolTip.Tip="返回上一级"><ctl:AppIcon Kind="up" Width="15" Height="15" Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"/></Button>
+            <Button Classes="icon"  Command="{Binding RefreshCommand}" ToolTip.Tip="刷新"><ctl:AppIcon Kind="refresh" Width="15" Height="15" Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"/></Button>
           </StackPanel>
           <TextBox Grid.Column="4" Classes="path" Width="190" Margin="8,0,0,0"
                    Watermark="筛选当前目录…" Text="{Binding FilterText}" FontFamily="Microsoft YaHei UI"/>
@@ -583,7 +593,7 @@
                             </Path.Styles>
                           </Path>
                         </Button>
-                        <Path Grid.Column="1" Data="{StaticResource IcoFolder}" Width="15" Height="15"
+                        <Path StrokeLineCap="Round" StrokeJoin="Round" Grid.Column="1" Data="{x:Static ctl:IconCatalog.Folder}" Width="15" Height="15"
                               Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"
                               Stroke="{DynamicResource TextMuted}" StrokeThickness="1.4"
                               Fill="{DynamicResource AccentFill}"/>
@@ -598,7 +608,7 @@
                             </Transitions>
                           </TextBlock.Transitions>
                         </TextBlock>
-                        <Path Grid.Column="2" Data="{StaticResource IcoPin}" Width="11" Height="11"
+                        <Path StrokeLineCap="Round" StrokeJoin="Round" Grid.Column="2" Data="{x:Static ctl:IconCatalog.Pin}" Width="11" Height="11"
                               Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Center"
                               Margin="0,0,8,0" IsVisible="{Binding IsPinned}"
                               Stroke="{DynamicResource TextMuted}" StrokeThickness="1.2"
@@ -733,7 +743,7 @@
                     BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,10"
                     BoxShadow="0 6 20 0 #66000000" IsHitTestVisible="False">
               <StackPanel Orientation="Horizontal" Spacing="12">
-                <Path Data="{StaticResource IcoFolder}" Width="16" Height="16" Stretch="Uniform"
+                <Path StrokeLineCap="Round" StrokeJoin="Round" Data="{x:Static ctl:IconCatalog.Folder}" Width="16" Height="16" Stretch="Uniform"
                       VerticalAlignment="Center" Stroke="{DynamicResource AccentText}" StrokeThickness="1.4"
                       Fill="{DynamicResource AccentFill}"/>
                 <TextBlock Text="松开：上传到当前目录" Foreground="{DynamicResource AccentText}"
@@ -768,11 +778,13 @@
       </Grid>
     </DockPanel>
 
+    </Border>
+
     <!-- ================= 模块管理页 ================= -->
     <DockPanel x:Name="ModPage" IsVisible="{Binding IsModulesTab}" LastChildFill="True">
 
-      <Border Classes="bar" DockPanel.Dock="Top" Background="{DynamicResource Bg}" Padding="14,10"
-              BorderThickness="0,0,0,1" BorderBrush="{DynamicResource StrokeSoft}">
+      <Border Classes="bar" DockPanel.Dock="Top" Background="{DynamicResource PanelAlt}" Padding="14,10" Margin="16,12,16,0" CornerRadius="{DynamicResource RadiusCard}"
+              BorderThickness="1" BorderBrush="{DynamicResource Hairline}">
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="2">
             <TextBlock Text="模块管理" FontSize="16" FontWeight="SemiBold"
@@ -839,8 +851,8 @@
     </DockPanel>
 
     <!-- ================= 应用管理页 ================= -->
-    <Grid x:Name="AppsPage" IsVisible="{Binding IsAppsTab}" Margin="16,12" RowDefinitions="Auto,*" RowSpacing="10">
-      <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+    <Grid x:Name="AppsPage" IsVisible="{Binding IsAppsTab}" Margin="16,12" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
         <Border Classes="seg" VerticalAlignment="Center">
           <Panel>
             <Border x:Name="ModePill" Classes="segpill" HorizontalAlignment="Left" VerticalAlignment="Stretch"
@@ -862,16 +874,33 @@
             </StackPanel>
           </Panel>
         </Border>
-        <TextBlock Grid.Column="1" Text="{Binding AppsStatus}" Classes="sub" VerticalAlignment="Center" Margin="14,0,0,0"/>
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8">
+        <TextBlock Grid.Column="1" Text="{Binding AppsStatus}" TextTrimming="CharacterEllipsis" Classes="sub" VerticalAlignment="Center" Margin="14,0,0,0"/>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Classes="tool" Content="安装应用" Click="OnAppsInstall" ToolTip.Tip="从电脑选择 APK 安装到手机"/>
           <Button Classes="tool" Content="刷新" Click="OnAppsRefresh"/>
         </StackPanel>
       </Grid>
 
-      <Border Grid.Row="1" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+        <TextBox Text="{Binding AppSearchText, Mode=TwoWay}" Watermark="搜索应用名称或包名"
+                 AutomationProperties.Name="搜索应用名称或包名"/>
+        <TextBlock Grid.Column="1" Text="{Binding AppResultCount, StringFormat='{}{0} 项'}"
+                   Classes="sub" VerticalAlignment="Center"/>
+        <ComboBox Grid.Column="2" Width="150" SelectedIndex="{Binding AppSortIndex, Mode=TwoWay}"
+                  AutomationProperties.Name="应用排序方式">
+          <ComboBoxItem Content="名称（首字母）"/>
+          <ComboBoxItem Content="主 APK 大小"/>
+        </ComboBox>
+        <ComboBox Grid.Column="3" Width="88" SelectedIndex="{Binding AppSortDirection, Mode=TwoWay}"
+                  AutomationProperties.Name="应用排序方向">
+          <ComboBoxItem Content="升序"/>
+          <ComboBoxItem Content="降序"/>
+        </ComboBox>
+      </Grid>
+
+      <Border Grid.Row="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
               BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="8,6" ClipToBounds="True">
-        <ListBox x:Name="AppsList" ItemsSource="{Binding Apps}" Background="Transparent" BorderThickness="0" Padding="0"
+        <ListBox x:Name="AppsList" ItemsSource="{Binding FilteredApps}" Background="Transparent" BorderThickness="0" Padding="0"
                  ctl:SmoothScroll.Enabled="True">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem">
@@ -932,10 +961,13 @@
                             Padding="4,1" VerticalAlignment="Center" ToolTip.Tip="图标为推测结果，可能不准确">
                       <TextBlock Text="图标可能不准" FontSize="10.5" Foreground="{DynamicResource WarnFg}"/>
                     </Border>
+                  <Border IsVisible="{Binding IsGranted}" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1" Background="{DynamicResource AccentFill}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center"><TextBlock Text="Root 已授权" FontSize="11" Foreground="{DynamicResource AccentText}"/></Border>
                   </StackPanel>
-                  <TextBlock Text="{Binding Version}" FontSize="12"
-                             Foreground="{DynamicResource TextMuted}"
-                             FontFamily="Consolas, Cascadia Mono, monospace"/>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="{Binding Version}" FontSize="12" Foreground="{DynamicResource TextMuted}"/>
+                    <TextBlock Text="{Binding ApkSizeText}" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                               ToolTip.Tip="主 APK 大小，不含拆分包和应用数据"/>
+                  </StackPanel>
                   <TextBlock Text="{Binding Package}" FontSize="11.5"
                              Foreground="{DynamicResource TextMuted}"
                              FontFamily="Consolas, Cascadia Mono, monospace"
@@ -973,7 +1005,7 @@
       <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
         <StackPanel Spacing="3" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="8">
-            <Path Data="{StaticResource IcoPuzzle}" Width="18" Height="18" Stretch="Uniform"
+            <Path StrokeLineCap="Round" StrokeJoin="Round" Data="{x:Static ctl:IconCatalog.Puzzle}" Width="18" Height="18" Stretch="Uniform"
                   Stroke="{DynamicResource Accent}" StrokeThickness="1.4" VerticalAlignment="Center"/>
             <TextBlock Text="插件" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
@@ -1168,7 +1200,7 @@
               Background="{DynamicResource PluginDropBg}" BorderBrush="{DynamicResource AccentDeep}" BorderThickness="1"
               CornerRadius="{DynamicResource RadiusCard}" IsHitTestVisible="False">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-          <Path Data="{StaticResource IcoPuzzle}" Width="38" Height="38" Stretch="Uniform"
+          <Path StrokeLineCap="Round" StrokeJoin="Round" Data="{x:Static ctl:IconCatalog.Puzzle}" Width="38" Height="38" Stretch="Uniform"
                 Stroke="{DynamicResource Accent}" StrokeThickness="1.2" HorizontalAlignment="Center"/>
           <TextBlock Text="松开以安装 .dfp 插件" FontSize="18" FontWeight="SemiBold"
                      Foreground="{DynamicResource TextMain}" HorizontalAlignment="Center"/>
@@ -1181,7 +1213,7 @@
     <ContentControl IsVisible="{Binding IsNavigationTab}" Content="{Binding NavigationPageView}" Margin="16,12"/>
 
     <!-- ================= 设置页 ================= -->
-    <Grid x:Name="SetPage" IsVisible="{Binding IsSettingsTab}" Margin="16,12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
+    <ScrollViewer x:Name="SetPage" IsVisible="{Binding IsSettingsTab}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" ctl:SmoothScroll.Enabled="True"><Grid Margin="16,12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
 
       <StackPanel Grid.Row="0" Spacing="2">
         <TextBlock Text="设置" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextMain}"/>
@@ -1213,6 +1245,22 @@
                           IsEnabled="{Binding IsMaterialEnabled}" Foreground="{DynamicResource TextSub}"
                           ToolTip.Tip="透出窗口后方的磨砂色彩；关闭后恢复云母。此效果会增加合成开销。"/>
               </StackPanel>
+              <Border x:Name="HyprlandSettingsPanel" BorderBrush="{DynamicResource StrokeSoft}" BorderThickness="0,1,0,1" Padding="0,10" Margin="0,4">
+                <StackPanel Spacing="10">
+                  <CheckBox Content="Hyprland 半透风格" IsChecked="{Binding IsHyprlandEnabled, Mode=TwoWay}" Foreground="{DynamicResource TextMain}"/>
+                  <StackPanel IsVisible="{Binding IsHyprlandEnabled}" Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="背景颜色" VerticalAlignment="Center" Foreground="{DynamicResource TextSub}"/>
+                      <ColorPicker x:Name="HyprlandBackgroundPicker" Grid.Column="1" Width="120" Color="{Binding HyprlandBackgroundColor, Mode=TwoWay}" ColorSpectrumShape="Ring" IsAlphaEnabled="False" IsColorPaletteVisible="False" IsColorComponentsVisible="False" IsColorSpectrumVisible="True" IsHexInputVisible="True" ToolTip.Tip="点击打开圆形取色板；亮度滑块可调出灰黑背景"/>
+                    </Grid>
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding HyprlandTransparency, StringFormat='背景透明度 {0:0}%'}" FontSize="12" Foreground="{DynamicResource TextSub}"/>
+                      <Slider x:Name="HyprlandTransparencySlider" Minimum="0" Maximum="80" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding HyprlandTransparency, Mode=TwoWay}"/>
+                    </StackPanel>
+                    <Button Classes="tool" Content="恢复灰黑背景" Command="{Binding ResetHyprlandBackgroundCommand}" HorizontalAlignment="Left"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
               <TextBlock Text="主题色" FontSize="13" Foreground="{DynamicResource TextSub}"/>
               <ItemsControl ItemsSource="{Binding Themes}">
                 <ItemsControl.ItemsPanel>
@@ -1313,7 +1361,7 @@
           </StackPanel>
         </Grid>
       </Border>
-    </Grid>
+    </Grid></ScrollViewer>
 
       <!-- 关闭时的清理遮罩 -->
       <Border x:Name="CleanupOverlay" IsVisible="False" Background="{DynamicResource OverlayMask}">

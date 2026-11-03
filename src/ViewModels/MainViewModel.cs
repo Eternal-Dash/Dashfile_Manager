@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Collections.ObjectModel;
@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DashFile.Models;
@@ -75,6 +76,10 @@ public partial class MainViewModel : ObservableObject
         foreach (var t in Themes) t.IsSelected = string.Equals(t.Hex, saved, StringComparison.OrdinalIgnoreCase);
         foreach (var st in Styles) st.IsSelected = string.Equals(st.Key, savedStyle, StringComparison.OrdinalIgnoreCase);
         IsGlassEnabled = AppSettings.Current.GlassEnabled;
+        ThemeService.ApplyHyprlandTransparency(AppSettings.Current.HyprlandTransparency);
+        _hyprlandTransparency = ThemeService.HyprlandTransparency;
+        HyprlandBackgroundColor = Color.TryParse(AppSettings.Current.HyprlandBackgroundHex, out var backgroundColor) ? backgroundColor : Color.Parse("#202020");
+        IsHyprlandEnabled = AppSettings.Current.HyprlandEnabled;
         IsMaterialEnabled = AppSettings.Current.MaterialEnabled;
         IsLightMode = string.Equals(AppSettings.Current.Appearance, "light", StringComparison.OrdinalIgnoreCase);
         ThemeService.ApplyAppearance(IsLightMode ? "light" : "dark", savedStyle, saved);
@@ -91,6 +96,7 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<DeviceInfo> Devices { get; } = new();
     public BulkObservableCollection<PosixEntry> Entries { get; } = new();
     private List<PosixEntry> _entriesRaw = new();
+    private bool _treeSyncPending;
     private string _sortColumn = "type";
     [ObservableProperty] private string _filterText = "";
     private bool _sortAsc = false;
@@ -157,6 +163,16 @@ public partial class MainViewModel : ObservableObject
         if (IsNavigationTab) _ = CreateNavigationViewAsync();
         OnPropertyChanged(nameof(RightStatusText));
         if (value == 0) LoadDeviceInfoAsync(_lastSerial, "", "").Safe("读取设备信息", m => StatusText = m);
+        if (value == 1)
+        {
+            if (_treeSyncPending && _fs != null)
+            {
+                _treeSyncPending = false;
+                SyncTreeAsync(CurrentPath, _entriesRaw).Safe("同步目录树");
+            }
+            PrefetchAsync(_entriesRaw).Safe("预取目录");
+        }
+        else _prefetchCts?.Cancel();
         if (value == 2) LoadModulesAsync().Safe("读取模块", m => StatusText = m);
         if (value == 3) LoadAppsAsync().Safe("读取应用", m => StatusText = m);
         if (value == 4) RefreshPlugins();
@@ -852,11 +868,12 @@ public partial class MainViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        // 窗口已经显示出来后再做重活（adb 启动、设备扫描），避免开屏卡顿
-        await Task.Yield();
-        StartWatchdog();
-        await RefreshDevicesAsync();
+        // 给首帧和已经排队的输入让路。首次设备扫描结束后再开始轮询。
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { },
+            Avalonia.Threading.DispatcherPriority.Background);
         InitializePluginsAsync().Safe("加载插件", m => StatusText = m);
+        await RefreshDevicesAsync();
+        StartWatchdog();
         PerfProbeAsync().Safe("性能探针");
     }
 
@@ -1044,8 +1061,8 @@ public partial class MainViewModel : ObservableObject
 
         RootBadge = name;
         DeviceModeText = name;
-        DeviceSub = $"设备已进入 {name} 模式（ADB 暂不可用）—— 用「快捷重启」可以切回系统或去别的模式";
-        StatusText = DeviceSub;
+        DeviceSub = "";
+        StatusText = $"设备已进入 {name} 模式（ADB 暂不可用）—— 用「快捷重启」可以切回系统或去别的模式";
 
         _fs = null;
         IsRoot = false;
@@ -1115,7 +1132,7 @@ public partial class MainViewModel : ObservableObject
                 _fs = null; IsRoot = false;
                 Entries.Clear(); IsEmpty = true;
                 Modules.Clear(); ModulesEmpty = true;
-                Apps.Clear(); AppsStatus = "未连接设备"; _apps = null; _modules = null;
+                ClearApps(); AppsStatus = "未连接设备"; _apps = null; _modules = null;
                 ClearDeviceInfo();
                 _lastSerial = "";
                 _plugins?.RaiseDeviceChanged(new DeviceSnapshot(false, false, "", "", "", ""));
@@ -1292,9 +1309,10 @@ public partial class MainViewModel : ObservableObject
             _treeLoads.Clear();
             _nodes.Clear();
             _rootNode = null;
+            _treeSyncPending = false;
             TreeRows.Clear();
 
-            Apps.Clear();
+            ClearApps();
             AppsStatus = "";
 
             RootBadge = IsRoot ? "已获取 ROOT" : "普通权限";
@@ -1703,7 +1721,77 @@ public partial class MainViewModel : ObservableObject
 
     // ---------------- 应用管理 ----------------
 
-    public ObservableCollection<AppItem> Apps { get; } = new();
+    public BulkObservableCollection<AppItem> Apps { get; } = new();
+    public BulkObservableCollection<AppItem> FilteredApps { get; } = new();
+    public int AppResultCount => FilteredApps.Count;
+
+    [ObservableProperty] private string _appSearchText = "";
+    [ObservableProperty] private int _appSortIndex;
+    [ObservableProperty] private int _appSortDirection;
+
+    private static readonly StringComparer AppNameComparer = StringComparer.Create(CultureInfo.GetCultureInfo("zh-CN"), true);
+    private Avalonia.Threading.DispatcherTimer? _appListRefresh;
+
+    partial void OnAppSearchTextChanged(string value) => RefreshAppList();
+    partial void OnAppSortIndexChanged(int value) => RefreshAppList();
+    partial void OnAppSortDirectionChanged(int value) => RefreshAppList();
+
+    private void ClearApps()
+    {
+        _appCts?.Cancel();
+        _appListRefresh?.Stop();
+        Apps.Clear();
+        RefreshAppList();
+    }
+
+    private static string AppName(AppItem app) => string.IsNullOrWhiteSpace(app.Label) ? app.Package : app.Label;
+
+    private void RefreshAppList()
+    {
+        var query = AppSearchText?.Trim() ?? "";
+        var filtered = Apps.Where(app => query.Length == 0 ||
+            AppName(app).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            app.Package.Contains(query, StringComparison.OrdinalIgnoreCase));
+        var descending = AppSortDirection == 1;
+        IOrderedEnumerable<AppItem> sorted;
+        if (AppSortIndex == 1)
+        {
+            var knownFirst = filtered.OrderBy(app => !app.ApkSize.HasValue);
+            sorted = descending ? knownFirst.ThenByDescending(app => app.ApkSize) : knownFirst.ThenBy(app => app.ApkSize);
+            sorted = sorted.ThenBy(AppName, AppNameComparer);
+        }
+        else
+        {
+            sorted = descending ? filtered.OrderByDescending(AppName, AppNameComparer) : filtered.OrderBy(AppName, AppNameComparer);
+        }
+
+        var result = sorted.ThenBy(app => app.Package, StringComparer.OrdinalIgnoreCase).ToArray();
+        if (FilteredApps.SequenceEqual(result)) return;
+        FilteredApps.ReplaceAll(result);
+        OnPropertyChanged(nameof(AppResultCount));
+    }
+
+    private void ScheduleAppListRefresh()
+    {
+        _appListRefresh ??= new Avalonia.Threading.DispatcherTimer(
+            TimeSpan.FromMilliseconds(180), Avalonia.Threading.DispatcherPriority.Background, (_, _) =>
+            {
+                _appListRefresh!.Stop();
+                RefreshAppList();
+            });
+        if (!_appListRefresh.IsEnabled) _appListRefresh.Start();
+    }
+
+    private async Task ReadAppSizesAsync(AppService service, IReadOnlyList<AppItem> apps, CancellationToken ct)
+    {
+        var sizes = await service.GetApkSizesAsync(apps, ct);
+        if (ct.IsCancellationRequested) return;
+        foreach (var app in apps)
+        {
+            if (sizes.TryGetValue(app.ApkPath, out var bytes)) app.ApkSize = bytes;
+        }
+        if (AppSortIndex == 1) RefreshAppList();
+    }
     [ObservableProperty] private int _appMode;          // 0 = 用户应用，1 = 系统应用
     [ObservableProperty] private string _appsStatus = "";
     private AppService? _apps;
@@ -2046,7 +2134,7 @@ public partial class MainViewModel : ObservableObject
     /// <summary>后台逐个预热子目录（用户停在某目录时才开始，一旦导航立刻取消）</summary>
     private async Task PrefetchAsync(IReadOnlyList<PosixEntry> entries)
     {
-        if (_fs == null) return;
+        if (_fs == null || !IsFileTab || entries.Count == 0) return;
         _prefetchCts?.Cancel();
         var cts = new CancellationTokenSource();
         _prefetchCts = cts;
@@ -2200,17 +2288,16 @@ public partial class MainViewModel : ObservableObject
 
     public async Task LoadAppsAsync()
     {
-        if (_fs == null) { AppsStatus = "未连接设备"; return; }
+        if (_fs == null) { ClearApps(); AppsStatus = "未连接设备"; return; }
 
-        _appCts?.Cancel();
+        ClearApps();
         _appCts = new CancellationTokenSource();
         var ct = _appCts.Token;
 
         try
         {
-            Apps.Clear();
             AppsStatus = "正在读取应用列表…";
-            _apps ??= new AppService(_fs);
+            var service = _apps ??= new AppService(_fs);
 
             List<AppItem> list;
             var tableUnsupported = false;
@@ -2228,7 +2315,19 @@ public partial class MainViewModel : ObservableObject
                 readOnly = _root != null && _root.CanReadGrants && !_root.CanManageGrants;
                 var granted = grants.ToDictionary(g => g.Package, g => g.Allowed);
 
-                list = await Task.Run(() => _apps.ListAsync(false, ct), ct);
+                list = await Task.Run(() => service.ListAsync(false, ct), ct);
+
+                // A granted system app must not disappear just because the default
+                // superuser list starts with user apps. Only add granted packages.
+                var represented = list.Select(a => a.Package).ToHashSet(StringComparer.Ordinal);
+                var missingGranted = grants.Where(g => g.Allowed && !string.IsNullOrWhiteSpace(g.Package)
+                    && g.Package != AppInfo.ShellPackage && !represented.Contains(g.Package))
+                    .Select(g => g.Package).ToHashSet(StringComparer.Ordinal);
+                if (missingGranted.Count > 0)
+                {
+                    var systemApps = await Task.Run(() => service.ListAsync(true, ct), ct);
+                    list.AddRange(systemApps.Where(a => missingGranted.Contains(a.Package)));
+                }
 
                 var shell = list.FirstOrDefault(a => a.Package == AppInfo.ShellPackage);
                 if (shell == null)
@@ -2250,11 +2349,13 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                list = await Task.Run(() => _apps.ListAsync(AppMode == 1, ct), ct);
+                list = await Task.Run(() => service.ListAsync(AppMode == 1, ct), ct);
             }
 
             if (ct.IsCancellationRequested) return;
-            foreach (var a in list) Apps.Add(a);
+            Apps.ReplaceAll(list);
+            RefreshAppList();
+            ReadAppSizesAsync(service, list, ct).Safe("读取 APK 大小");
 
             var total = list.Count;
             AppsStatus = AppMode == 2
@@ -2265,10 +2366,6 @@ public partial class MainViewModel : ObservableObject
                         : $"{list.Count(x => x.IsGranted)} 个已授权 · 共 {total} 个应用 · 正在读取图标…")
                 : $"{total} 个应用 · 正在读取版本与图标…";
             var done = 0;
-            // 不要 using：下面的图标任务是 fire-and-forget（_ = Task.Run），方法返回时它们还在跑。
-            //   用 using 会在方法结束时 Dispose，任务里的 finally 再 Release 就抛 ObjectDisposedException——
-            //   而 finally 抛出的异常不会被 catch 接住，任务变成 Unobserved，最后在终结器线程炸掉进程。
-            var sem = new SemaphoreSlim(8);
             var loadWatch = System.Diagnostics.Stopwatch.StartNew();
 
             // 一次 dumpsys 拿到所有 versionName，避免 370 个应用各跑一次 adb（约省 30 秒）。
@@ -2277,30 +2374,36 @@ public partial class MainViewModel : ObservableObject
             if (list.Count >= 20)
             {
                 var versionWatch = System.Diagnostics.Stopwatch.StartNew();
-                versionMap = await _apps.GetVersionsAsync(list.Select(a => a.Package).ToList(), ct);
+                versionMap = await service.GetVersionsAsync(list.Select(a => a.Package).ToList(), ct);
                 Perf($"app versions batch -> {versionMap.Count} in {versionWatch.ElapsedMilliseconds}ms");
                 if (versionMap.Count == 0) versionMap = null;
             }
 
-            foreach (var item in list)
-            {
-                if (ct.IsCancellationRequested) break;
-                await sem.WaitAsync(ct);
-                _ = Task.Run(async () =>
+            // Own and await the bounded workers; cancellation drains the old batch
+            // without leaking a semaphore or leaving unobserved background tasks.
+            await Parallel.ForEachAsync(list,
+                new ParallelOptions { MaxDegreeOfParallelism = 8, CancellationToken = ct },
+                async (item, token) =>
                 {
                     try
                     {
                         var v = versionMap != null
                             ? (versionMap.TryGetValue(item.Package, out var known) ? known : "")
-                            : await _apps.GetVersionAsync(item.Package, ct);
+                            : await service.GetVersionAsync(item.Package, token);
                         var label = item.Package == AppInfo.ShellPackage
                             ? "Shell（adb 调试）"
-                            : await _apps.GetLabelAsync(item.Package, item.ApkPath, ct);
-                        var (icon, exact) = await _apps.GetIconAsync(item.Package, item.ApkPath, ct);
+                            : await service.GetLabelAsync(item.Package, item.ApkPath, token);
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            if (ct.IsCancellationRequested || string.IsNullOrEmpty(label) || item.Label == label) return;
+                            item.Label = label;
+                            ScheduleAppListRefresh();
+                        }, Avalonia.Threading.DispatcherPriority.Background);
+                        var (icon, exact) = await service.GetIconAsync(item.Package, item.ApkPath, token);
                         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                         {
+                            if (ct.IsCancellationRequested) return;
                             if (!string.IsNullOrEmpty(v)) item.Version = "v" + v;
-                            if (!string.IsNullOrEmpty(label)) item.Label = label;
                             if (icon != null) { item.Icon = icon; item.IconUncertain = !exact; }
                             done++;
                             if (done == total)
@@ -2313,13 +2416,12 @@ public partial class MainViewModel : ObservableObject
                                     : $"{total} 个应用 · 已读取 {done}";
                         });
                     }
-                    catch { }
-                    finally { try { sem.Release(); } catch (ObjectDisposedException) { } }
-                }, ct);
-            }
+                    catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                    catch (Exception ex) { AppLog.Add("读取应用详情失败：" + item.Package + "；" + ex.Message); }
+                });
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { AppsStatus = "读取失败：" + ex.Message; }
+        catch (Exception ex) { if (!ct.IsCancellationRequested) AppsStatus = "读取失败：" + ex.Message; }
     }
 
     // 插件相关字段 / 属性 / 命令已拆到 MainViewModel.Plugins.cs
@@ -2329,6 +2431,36 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<ThemeOption> Themes { get; } = new();
     public ObservableCollection<StyleOption> Styles { get; } = new();
     [ObservableProperty] private bool _isGlassEnabled;
+    [ObservableProperty] private bool _isHyprlandEnabled;
+    [ObservableProperty] private Color _hyprlandBackgroundColor = Color.FromRgb(32, 32, 32);
+    partial void OnHyprlandBackgroundColorChanged(Color value)
+    {
+        ThemeService.ApplyHyprlandBackground(value);
+        AppSettings.Current.HyprlandBackgroundHex = $"#{value.R:X2}{value.G:X2}{value.B:X2}";
+        AppSettings.Save();
+    }
+    [RelayCommand]
+    private void ResetHyprlandBackground() => HyprlandBackgroundColor = Color.FromRgb(32, 32, 32);
+    [ObservableProperty] private double _hyprlandTransparency;
+    partial void OnHyprlandTransparencyChanged(double value)
+    {
+        ThemeService.ApplyHyprlandTransparency(value);
+        AppSettings.Current.HyprlandTransparency = ThemeService.HyprlandTransparency;
+        AppSettings.Save();
+    }
+    partial void OnIsHyprlandEnabledChanged(bool value)
+    {
+        ThemeService.ApplyHyprland(value, StyleKey, AccentHex);
+        AppSettings.Current.HyprlandEnabled = value;
+        AppSettings.Save();
+    }
+
+    [RelayCommand]
+    private void ShowRootApps()
+    {
+        AppMode = 2;
+        SelectedTab = 3;
+    }
 
     partial void OnIsGlassEnabledChanged(bool value)
     {
@@ -2595,12 +2727,12 @@ public partial class MainViewModel : ObservableObject
             Perf($"nav {path,-24} ls={tLs}ms sort={tSort - tLs}ms items={list.Count}");
             StatusText = $"共 {list.Count} 个项目    {path}";
 
-            // 树同步放到后台，别挡住列表刷新
-            var snapshot = list;
-            SyncTreeAsync(path, snapshot).Safe("同步目录树");
+            // 隐藏的文件页不构建树。切到文件页时复用已经列出的目录。
+            _treeSyncPending = !IsFileTab;
+            if (IsFileTab) SyncTreeAsync(path, list).Safe("同步目录树");
 
             if (fromPrefetch) RevalidateAsync(path).Safe("校准目录");
-            PrefetchAsync(snapshot).Safe("预取目录");
+            PrefetchAsync(list).Safe("预取目录");
         }
         catch (OperationCanceledException) { /* 被更新的一次导航取消，正常 */ }
         catch (Exception ex)
@@ -2661,7 +2793,7 @@ public partial class MainViewModel : ObservableObject
 
         var loads = new List<Task>(chain.Count);
         foreach (var n in chain)
-            if (!n.IsLoaded) loads.Add(LoadChildrenAsync(n));
+            if (!n.IsLoaded) loads.Add(LoadChildrenAsync(n, ReferenceEquals(n, parent) ? entries : null));
         if (loads.Count > 1) await Task.WhenAll(loads);
         else if (loads.Count == 1) await loads[0];
 

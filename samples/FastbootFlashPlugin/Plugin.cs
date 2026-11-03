@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using DashFile.PluginApi;
+using System.Text.Json;
 
 namespace FastbootFlashPlugin;
 
@@ -8,7 +9,21 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
     private FlashViewModel? _session;
     public bool IsOperationActive => _session?.IsBusy == true;
     public string OperationDescription => "分区刷写 / 镜像回读";
-    public override PluginMetadata Metadata => new() { Id = "com.dashfile.fastbootflash", Name = "DashFile - 分区刷写", Version = "1.0.2", Author = "EternalDash", Description = "分区刷写与可验证备份" };
+    private static readonly PluginManifest Manifest = ReadManifest();
+
+    public override PluginMetadata Metadata => new()
+    {
+        Id = Manifest.Id, Name = Manifest.Name, Version = Manifest.Version,
+        Author = Manifest.Author, Description = Manifest.Description
+    };
+
+    private static PluginManifest ReadManifest()
+    {
+        using var stream = typeof(FlashPlugin).Assembly.GetManifestResourceStream("FastbootFlashPlugin.plugin.json")
+            ?? throw new InvalidOperationException("缺少内嵌插件清单");
+        return JsonSerializer.Deserialize<PluginManifest>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException("插件清单为空");
+    }
 
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
@@ -20,7 +35,16 @@ public sealed class FlashPlugin : PluginBase, IPluginOperationGuard
         {
             Id = "about", Title = "插件信息", ShowInMainNavigation = false,
             Description = "运行状态与插件信息", Icon = "ⓘ",
-            CreateViewAsync = (_, _) => Task.FromResult<Control>(new InfoPage())
+            CreateViewAsync = (_, _) => Task.FromResult<Control>(new InfoPage
+            {
+                DataContext = new
+                {
+                    Manifest.Id, Manifest.Name, Manifest.Version, Manifest.Author, Manifest.License,
+                    Compatibility = string.IsNullOrWhiteSpace(Manifest.MinHostVersion)
+                        ? $"v{Manifest.ApiVersion}"
+                        : $"v{Manifest.ApiVersion}（宿主 {Manifest.MinHostVersion} 及以上）"
+                }
+            })
         });
 
         // 工作页：进顶部导航，所有操作都在这里，详情页不再重复挂一份。

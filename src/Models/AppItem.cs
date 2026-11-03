@@ -23,6 +23,14 @@ public partial class AppItem : ObservableObject
     [ObservableProperty] private bool _canToggleRoot = true;
     [ObservableProperty] private Bitmap? _icon;
 
+    [ObservableProperty] private long? _apkSize;
+
+    public string ApkSizeText => ApkSize is long bytes
+        ? bytes >= 1024 * 1024 ? $"{bytes / (1024.0 * 1024):0.##} MB" : $"{bytes / 1024.0:0.##} KB"
+        : "";
+
+    partial void OnApkSizeChanged(long? value) => OnPropertyChanged(nameof(ApkSizeText));
+
     public bool HasIcon => Icon != null;
     partial void OnIconChanged(Bitmap? value) => OnPropertyChanged(nameof(HasIcon));
 

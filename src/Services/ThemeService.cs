@@ -21,6 +21,26 @@ public static class ThemeService
     }
 
     public static bool GlassEnabled { get; private set; }
+    public static bool HyprlandEnabled { get; private set; }
+    public const double DefaultHyprlandTransparency = 67;
+    public static double HyprlandTransparency { get; private set; } = DefaultHyprlandTransparency;
+    public static Color HyprlandBackgroundColor { get; private set; } = Color.FromRgb(32, 32, 32);
+    public static void ApplyHyprlandBackground(Color color)
+    {
+        HyprlandBackgroundColor = Color.FromRgb(color.R, color.G, color.B);
+        ApplyHyprlandTransparency(HyprlandTransparency);
+    }
+    public static void ApplyHyprlandTransparency(double percent)
+    {
+        HyprlandTransparency = double.IsFinite(percent) ? Math.Clamp(percent, 0, 80) : DefaultHyprlandTransparency;
+        if (HyprlandEnabled && Application.Current is { } app)
+            app.Resources["WindowBackdrop"] = new SolidColorBrush(Color.FromArgb((byte)Math.Round(255 * (1 - HyprlandTransparency / 100)), HyprlandBackgroundColor.R, HyprlandBackgroundColor.G, HyprlandBackgroundColor.B));
+    }
+    public static void ApplyHyprland(bool enabled, string style, string hex)
+    {
+        HyprlandEnabled = enabled;
+        ApplyStyle(style, hex);
+    }
 
     public static void ApplyGlass(bool enabled, string style, string hex)
     {
@@ -51,9 +71,15 @@ public static class ThemeService
         if (app == null) return;
         if (!Color.TryParse(hex, out var c)) return;
 
-        app.RequestedThemeVariant = Appearance == "light"
+        app.RequestedThemeVariant = Appearance == "light" && !HyprlandEnabled
             ? Avalonia.Styling.ThemeVariant.Light : Avalonia.Styling.ThemeVariant.Dark;
         ApplyCommon(app);
+        app.Resources["SurfaceEdge"] = new SolidColorBrush(Colors.Transparent);
+        if (HyprlandEnabled)
+        {
+            ApplyHyprlandPalette(app, c);
+            return;
+        }
         if (Appearance == "light")
         {
             ApplyLight(app, c);
@@ -176,7 +202,7 @@ public static class ThemeService
     // Every mode sets shared tokens too: light -> dark never leaves pale text or overlays behind.
     private static void ApplyCommon(Application app)
     {
-        var light = Appearance == "light";
+        var light = Appearance == "light" && !HyprlandEnabled;
         app.Resources["SectionRuleOpacity"] = light ? 1d : 0.6d;
         app.Resources["WindowMaterialLevels"] = light && MaterialEnabled
             ? (GlassEnabled
@@ -192,7 +218,7 @@ public static class ThemeService
             ("TrackOff", "#3F3F4D", "#CDD3DD"), ("TrackOffHover", "#4A4A5A", "#BAC3D0"),
             ("RowHover", "#12FFFFFF", "#0B23334C"), ("FileHover", "#1EFFFFFF", "#1223334C"),
             ("HoverLayer", "#16FFFFFF", "#0E23334C"), ("PressedLayer", "#20FFFFFF", "#1A23334C"),
-            ("Divider", "#17FFFFFF", "#B5C1CF"), ("Hairline", "#2BFFFFFF", "#B3BFCE"),
+            ("Divider", "#17FFFFFF", "#B5C1CF"), ("Hairline", "#606068", "#8E9EB0"),
             ("HairlineSoft", "#18FFFFFF", "#C0CAD7"), ("Danger", "#D98080", "#972B36"),
             ("Ok", "#8FD0AA", "#176139"), ("PluginDropBg", "#E614121C", "#F5F5F8FC"),
             ("ChartGrid", "#1EFFFFFF", "#18334158"), ("PreviewText", "#7FE3FF", "#006A85"),
@@ -214,6 +240,42 @@ public static class ThemeService
                 new GradientStop(Color.Parse(light ? "#00DCE6F3" : "#00141824"), 1)
             }
         };
+    }
+
+    private static void ApplyHyprlandPalette(Application app, Color accent)
+    {
+        // A Windows interpretation of Hyprland's translucent floating surfaces.
+        // One OS backdrop; never an independently blurred surface for each row.
+        foreach (var (key, value) in new (string, string)[]
+        {
+            ("Bg", "#242424"), ("Panel", "#302D2D2D"), ("PanelAlt", "#63333333"),
+            ("ContentSurface", "#18333333"), ("TextMain", "#F0F0F0"), ("TextSub", "#D2D2D2"),
+            ("TextMuted", "#ADADAD"), ("Stroke", "#626262"), ("StrokeSoft", "#444444"),
+            ("Hairline", "#868686"), ("SurfaceEdge", "#66FFFFFF"),
+            ("AccentBg", "#303030"), ("AccentDeep", "#666666"), ("AccentHover", "#3B3B3B"),
+            ("Hover", "#303030"), ("HoverLayer", "#18FFFFFF"), ("Pressed", "#3B3B3B"),
+            ("PressedLayer", "#25FFFFFF"), ("RowHover", "#15FFFFFF"), ("FileHover", "#1AFFFFFF"),
+            ("ChipBg", "#703A3A3A"), ("ChipBorder", "#555555"), ("HairlineSoft", "#444444"),
+            ("ChartBg", "#50303030"), ("StrokeStrong", "#777777"),
+            ("ControlFill", "#A6373737"), ("PopupSurface", "#FC303030"),
+            ("TrackBg", "#444444"), ("ChartGrid", "#26FFFFFF"),
+            ("SelBg", "#383838"), ("CardSel", "#444444"), ("PluginDropBg", "#E6181818"),
+            ("OnAccent", "#121212"), ("BtnPriFg", "#121212"),
+            ("TrackOff", "#555555"), ("TrackOffHover", "#6A6A6A"), ("KnobFill", "#F4F4F4")
+        }) Set(app, key, Color.Parse(value));
+        var tint = Blend(accent, Colors.White, 0.25);
+        Set(app, "Accent", tint);
+        Set(app, "AccentText", Blend(tint, Colors.White, 0.32));
+        Set(app, "AccentSoft", Blend(tint, Colors.White, 0.45));
+        Set(app, "AccentFill", Color.FromArgb(32, tint.R, tint.G, tint.B));
+        Set(app, "SelBorder", tint);
+        Set(app, "BtnPriBg", tint);
+        Set(app, "BtnPriHover", Blend(tint, Colors.White, 0.35));
+        ApplyHyprlandTransparency(HyprlandTransparency);
+        app.Resources["WindowMaterialLevels"] = new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Mica, WindowTransparencyLevel.None };
+        app.Resources["RadiusCard"] = new CornerRadius(10);
+        app.Resources["RadiusCtl"] = new CornerRadius(6);
+        SetSystemAccent(app, tint);
     }
 
     private static void ApplyLight(Application app, Color c)
@@ -262,7 +324,7 @@ public static class ThemeService
             Set(app, "TextSub", Color.Parse("#273244"));
             Set(app, "Panel", Color.Parse("#AEE8EEF5"));
             Set(app, "PanelAlt", Color.Parse("#D9FFFFFF"));
-            Set(app, "Hairline", Color.Parse("#AEBCCD"));
+            Set(app, "Hairline", Color.Parse("#8B9CB0"));
             Set(app, "HairlineSoft", Color.Parse("#BDC9D8"));
         }
         // Explicit surface roles: controls/popups are stable, opaque reading surfaces.

@@ -151,6 +151,26 @@ public sealed class AppService
         return list.OrderBy(x => x.Package, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public async Task<Dictionary<string, long>> GetApkSizesAsync(IEnumerable<AppItem> apps, CancellationToken ct)
+    {
+        var sizes = new Dictionary<string, long>(StringComparer.Ordinal);
+        var paths = apps.Select(app => app.ApkPath).Where(path => path.Length > 0).Distinct(StringComparer.Ordinal);
+        foreach (var batch in paths.Chunk(40))
+        {
+            ct.ThrowIfCancellationRequested();
+            var args = string.Join(" ", batch.Select(Sh.Q));
+            var output = await _fs.RunCommandAsync($"stat -c '%s %n' {args} 2>/dev/null", false, ct, quiet: true)
+                .ConfigureAwait(false);
+            foreach (var line in output.Split('\n'))
+            {
+                var space = line.IndexOf(' ');
+                if (space > 0 && long.TryParse(line.AsSpan(0, space), NumberStyles.None, CultureInfo.InvariantCulture, out var size))
+                    sizes[line[(space + 1)..].TrimEnd('\r')] = size;
+            }
+        }
+        return sizes;
+    }
+
     /// <summary>读取应用详情（全部来自 dumpsys package，只读）</summary>
     public async Task<List<(string Label, string Value)>> GetDetailsAsync(string pkg, string apk,
         CancellationToken ct = default)

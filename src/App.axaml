@@ -4,6 +4,7 @@
              RequestedThemeVariant="Light">
 
   <Application.Resources>
+    <SolidColorBrush x:Key="SurfaceEdge" Color="Transparent"/>
     <!-- 底色：整体略微提亮，避免纯黑压字 -->
     <SolidColorBrush x:Key="Bg"         Color="#0B0A10"/>
     <SolidColorBrush x:Key="Panel"      Color="#14121C"/>
@@ -66,7 +67,7 @@
     <SolidColorBrush x:Key="PressedLayer" Color="#20FFFFFF"/>
     <SolidColorBrush x:Key="Divider"      Color="#17FFFFFF"/>
     <!-- 细白线：卡片/弹出菜单/选中滑块的 1px 描边，用低透明度白色提轮廓 -->
-    <SolidColorBrush x:Key="Hairline"     Color="#2BFFFFFF"/>
+    <SolidColorBrush x:Key="Hairline"     Color="#606068"/>
     <SolidColorBrush x:Key="HairlineSoft" Color="#18FFFFFF"/>
     <!-- SelBg 的"零透明度"版本：给选中行做底色，选中/取消选中时颜色插值不闪白 -->
     <SolidColorBrush x:Key="SelGhost"     Color="#003A3157"/>
@@ -76,6 +77,7 @@
   </Application.Resources>
 
   <Application.Styles>
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml"/>
     <FluentTheme />
 
     <Style Selector="Path">
@@ -755,7 +757,10 @@
     </Style>
 
     <Style Selector="Button.reboot">
-      <Setter Property="MinHeight" Value="56"/>
+      <Setter Property="Height" Value="76"/>
+      <Setter Property="Padding" Value="6,4"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
       <Setter Property="CornerRadius" Value="{DynamicResource RadiusCard}"/>
       <Setter Property="Background" Value="{DynamicResource ChipBg}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource ChipBorder}"/>

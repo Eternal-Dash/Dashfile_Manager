@@ -218,6 +218,61 @@ var duplicateRejected = false;
 try { await pm.InstallPackageAsync(duplicatePackage, false); } catch (InvalidOperationException) { duplicateRejected = true; }
 Check("duplicate installation rejects without deleting existing plugin", duplicateRejected && File.Exists(keepMarker));
 
+// Simulate a replacement that fails after extraction while a file is locked.
+// The updater must retain its old-version backup when rollback cannot finish.
+FileStream? lockedReplacement = null;
+EventHandler failReplacement = (_, _) =>
+{
+    lockedReplacement = new FileStream(Path.Combine(plugins, "com.demo.keep", "nope.dll"),
+        FileMode.Open, FileAccess.Read, FileShare.None);
+    throw new IOException("simulated post-load failure");
+};
+pm.Changed += failReplacement;
+var updateFailed = false;
+try { await pm.InstallPackageAsync(duplicatePackage, true); }
+catch (IOException) { updateFailed = true; }
+finally { lockedReplacement?.Dispose(); pm.Changed -= failReplacement; }
+var preservedBackups = Directory.GetDirectories(plugins, "com.demo.keep.bak-*");
+Check("post-load failure preserves the old plugin even with a locked replacement", updateFailed &&
+    (File.Exists(keepMarker) || (preservedBackups.Length == 1 &&
+     File.Exists(Path.Combine(preservedBackups[0], "keep.txt")))));
+
+const string rollbackId = "com.test.rollback";
+var rollbackDir = Path.Combine(plugins, rollbackId);
+Directory.CreateDirectory(rollbackDir);
+const string fixtureDll = "fixture.dll";
+File.Copy(Assembly.GetExecutingAssembly().Location, Path.Combine(rollbackDir, fixtureDll));
+void WriteRollbackManifest(string directory, string entry, string version, bool enabled)
+{
+    File.WriteAllText(Path.Combine(directory, "plugin.json"), System.Text.Json.JsonSerializer.Serialize(new
+    {
+        id = rollbackId, name = "Rollback fixture", version, enabled, apiVersion = 1, assembly = fixtureDll, entryType = entry
+    }));
+}
+WriteRollbackManifest(rollbackDir, nameof(WorkingPluginFixture), "1.0.0", true);
+var rollbackManager = new DashFile.Services.Plugins.PluginManager("1.2.0", new[] { plugins }, tmpRoot, (_, _) => null!);
+await rollbackManager.LoadAllAsync();
+Check("rollback fixture starts with an enabled working plugin",
+    rollbackManager.Find(rollbackId)?.State == DashFile.Services.Plugins.PluginLoadState.Loaded);
+var brokenSource = Directory.CreateDirectory(Path.Combine(tmpRoot, "broken-source")).FullName;
+File.Copy(Assembly.GetExecutingAssembly().Location, Path.Combine(brokenSource, fixtureDll));
+// The replacement changes its default to disabled. The existing enabled choice must still be honored.
+WriteRollbackManifest(brokenSource, nameof(BrokenPluginFixture), "1.1.0", false);
+var brokenPackage = Path.Combine(tmpRoot, "broken.dfp");
+System.IO.Compression.ZipFile.CreateFromDirectory(brokenSource, brokenPackage);
+var failureReported = false;
+try { await rollbackManager.InstallPackageAsync(brokenPackage, true); }
+catch (InvalidOperationException ex) { failureReported = ex.Message.Contains("fixture initialization failed"); }
+var restoredPlugin = rollbackManager.Find(rollbackId);
+Check("initialization failure restores and reloads the previously enabled plugin",
+    failureReported && restoredPlugin?.State == DashFile.Services.Plugins.PluginLoadState.Loaded &&
+    restoredPlugin.Manifest.Version == "1.0.0" && restoredPlugin.Enabled);
+
+var unsafeUninstallBlocked = false;
+try { await pm.UninstallAsync("../plugin-data", true); }
+catch (InvalidOperationException) { unsafeUninstallBlocked = true; }
+Check("uninstall rejects paths outside plugin root", unsafeUninstallBlocked && Directory.Exists(dataDir));
+
 try { Directory.Delete(tmpRoot, true); } catch { }
 
 // ---------- 5) 合并后的 AXML 阅读器（自建二进制 XML） ----------
@@ -538,18 +593,51 @@ foreach (var action in new Func<Task>[] { () => guardedManager.DisableAsync(desc
 Check("window can detect active plugin task", guardedManager.HasActiveOperations);
 activeGuard.Active = false; await guardedManager.DisableAsync(descriptor.Id);
 Check("idle plugin disables normally", !descriptor.Enabled && activeGuard.ShutdownCount == 1 && !guardedManager.HasActiveOperations);
+
+// This console suite has no running Avalonia dispatcher after SetupWithoutStarting.
+// The lifecycle fixture does not touch UI; do not capture its dormant context.
+var previousContext = SynchronizationContext.Current;
+SynchronizationContext.SetSynchronizationContext(null);
+var shutdownBarrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+activeGuard.ShutdownBarrier = shutdownBarrier.Task;
+typeof(DashFile.Services.Plugins.PluginDescriptor).GetField("Instance", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(descriptor, activeGuard);
+var pendingDisable = guardedManager.DisableAsync(descriptor.Id);
+foreach (var action in new Func<Task>[] {
+    () => guardedManager.EnableAsync(descriptor.Id), () => guardedManager.DisableAsync(descriptor.Id),
+    () => guardedManager.ReloadOneAsync(descriptor.Id), () => guardedManager.ReloadAllAsync(),
+    () => guardedManager.UninstallAsync(descriptor.Id, false),
+    async () => { await guardedManager.InstallPackageAsync("missing.dfp", true); } })
+{
+    var blocked = false;
+    try { await action(); } catch (InvalidOperationException ex) { blocked = ex.Message.Contains("稍后重试"); }
+    Check("overlapping plugin lifecycle operation rejected before mutation", blocked && activeGuard.ShutdownCount == 2);
+}
+shutdownBarrier.SetResult(); await pendingDisable;
+await guardedManager.LoadAllAsync();
+Check("plugin lifecycle guard released after async completion", !guardedManager.IsLoading);
+SynchronizationContext.SetSynchronizationContext(previousContext);
 try { Directory.Delete(guardRoot, true); } catch { }
 
 Console.WriteLine(fail == 0 ? "ALL PASS" : fail + " FAILED");
 
 return fail;
+public class WorkingPluginFixture : DashFile.PluginApi.PluginBase
+{
+    public override DashFile.PluginApi.PluginMetadata Metadata => new() { Id = "com.test.rollback" };
+}
+public sealed class BrokenPluginFixture : WorkingPluginFixture
+{
+    protected override Task OnInitializeAsync(CancellationToken ct) =>
+        Task.FromException(new InvalidOperationException("fixture initialization failed"));
+}
 sealed class TestOperationGuard : DashFile.PluginApi.PluginBase, DashFile.PluginApi.IPluginOperationGuard
 {
     public bool Active = true;
     public int ShutdownCount;
+    public Task? ShutdownBarrier;
     public bool IsOperationActive => Active;
     public string OperationDescription => "test device write";
     public override DashFile.PluginApi.PluginMetadata Metadata => new() { Id = "com.test.guard", Name = "Guard" };
     protected override Task OnInitializeAsync(CancellationToken ct) => Task.CompletedTask;
-    public override Task ShutdownAsync(CancellationToken ct = default) { ShutdownCount++; return Task.CompletedTask; }
+    public override Task ShutdownAsync(CancellationToken ct = default) { ShutdownCount++; return ShutdownBarrier ?? Task.CompletedTask; }
 }

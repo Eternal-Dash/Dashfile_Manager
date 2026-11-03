@@ -12,6 +12,9 @@ public sealed class AppSettings
     public bool MaterialEnabled { get; set; } = true;
     public string Appearance { get; set; } = "light";
     public bool GlassEnabled { get; set; }
+    public bool HyprlandEnabled { get; set; }
+    public double HyprlandTransparency { get; set; } = ThemeService.DefaultHyprlandTransparency;
+    public string HyprlandBackgroundHex { get; set; } = "#202020";
     public bool LightMaterialDefaultV4 { get; set; }
 
     // Migrate once, then respect every subsequent appearance/material choice.

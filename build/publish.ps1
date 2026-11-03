@@ -1,8 +1,9 @@
-﻿param([string]$Configuration = "Release")
+﻿param([string]$Configuration = "Release", [switch]$NoTrim)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $proj = Join-Path $root "src\DashFile.csproj"
-$out  = Join-Path $root "DashFile"
+$target = Join-Path $root "DashFile"
+$out = Join-Path $root (".DashFile-publish-" + [Guid]::NewGuid().ToString("N"))
 $bin  = Join-Path $root "tools\adb"
 
 $dotnet = "dotnet"
@@ -14,34 +15,19 @@ if (Test-Path (Join-Path $sdk "dotnet.exe")) {
     $dotnet = Join-Path $sdk "dotnet.exe"
 }
 
-Write-Host "== DashFile 发布（保守版：不裁剪）==" -ForegroundColor Cyan
+$trimmed = if ($NoTrim) { "false" } else { "true" }
+Write-Host "== DashFile 发布（PublishTrimmed=$trimmed）==" -ForegroundColor Cyan
 
-# 先杀掉占用：DashFile.exe 与从本目录启动的 adb.exe
-Get-Process DashFile -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process adb -ErrorAction SilentlyContinue |
-    Where-Object { $_.Path -and $_.Path.StartsWith($out, [StringComparison]::OrdinalIgnoreCase) } |
-    Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-
-if (Test-Path $out) {
-    for ($i = 0; $i -lt 5; $i++) {
-        try { Remove-Item $out -Recurse -Force -ErrorAction Stop; break }
-        catch {
-            if ($i -eq 4) { throw "无法删除 $out（文件被占用）：$($_.Exception.Message)" }
-            Start-Sleep -Seconds 2
-        }
-    }
-}
+# 独立构建成功后再替换。绝不强制终止用户的传输/刷写任务。
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-# 体积：单文件 + 压缩 + 裁剪（partial）。EXE 从 44MB 降到约 28MB。
-# 裁剪的保底项（自己的程序集 / Avalonia / Skia / CoreLib / 压缩 / 证书）写在 csproj 的 TrimmerRootAssembly 里，
-# 动它们之前先读 DashFile.csproj 的注释，否则会出现 "No precompiled XAML" 或插件 MissingMethod。
+# 对运行时做部分裁剪，保留插件与 XAML 依赖的 API。
+# 第三方插件需要额外 API 时，可用 -NoTrim 构建兼容版。
 & $dotnet publish $proj -c $Configuration -r win-x64 --self-contained true `
     -p:PublishSingleFile=true `
     -p:EnableCompressionInSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:PublishTrimmed=true `
+    "-p:PublishTrimmed=$trimmed" `
     -p:TrimMode=partial `
     -p:SatelliteResourceLanguages=zh-Hans `
     -p:PublishReadyToRun=false `
@@ -78,6 +64,7 @@ New-Item -ItemType Directory -Force -Path $sdkDir | Out-Null
 $apiDll = Join-Path $root "src\DashFile.PluginApi\bin\$Configuration\net8.0\DashFile.PluginApi.dll"
 if (-not (Test-Path $apiDll)) {
     & $dotnet build (Join-Path $root "src\DashFile.PluginApi\DashFile.PluginApi.csproj") -c $Configuration -v q
+    if ($LASTEXITCODE -ne 0) { throw "插件 SDK 构建失败" }
 }
 if (Test-Path $apiDll) { Copy-Item $apiDll $sdkDir -Force }
 $apiXml = [System.IO.Path]::ChangeExtension($apiDll, ".xml")
@@ -99,15 +86,52 @@ $pluginReadme = Join-Path $root "docs\插件目录说明.txt"
 if (Test-Path $pluginReadme) { Copy-Item $pluginReadme (Join-Path $pluginsOut "README.txt") -Force }
 
 # 插件不随发布包（发布包 plugins\ 只留 README，保持干净）：
-# 这里只把插件构建到 build\plugin-dist，作为桌面插件包的来源；要装插件时整份拷进 plugins\。
+# 插件在临时目录构建，最后单独存放到 artifacts/publish-backups/<本次>/plugin-dist。
 $pluginBuilder = Join-Path $root "build\build-plugins.ps1"
-$pluginDist = Join-Path $root "build\plugin-dist"
+$pluginDist = Join-Path $out "plugin-dist"
 if (Test-Path $pluginBuilder) {
-    if (Test-Path $pluginDist) { Remove-Item $pluginDist -Recurse -Force }
     & powershell -ExecutionPolicy Bypass -File $pluginBuilder -OutputDir $pluginDist -Configuration $Configuration
     if ($LASTEXITCODE -ne 0) { throw "插件构建失败" }
     Write-Host ("== 插件包（不随发布包）：" + $pluginDist + " ==") -ForegroundColor DarkGray
 }
+
+# 检查最终路径后才移动；保留完整旧目录，替换失败立即回滚。
+$rootFull = [IO.Path]::GetFullPath($root).TrimEnd('\') + '\'
+$archive = Join-Path $root ("artifacts\publish-backups\" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8))
+$previous = Join-Path $archive 'DashFile'
+foreach ($path in @($out, $target, $archive, $previous, $pluginDist)) {
+    if (-not [IO.Path]::GetFullPath($path).StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "发布路径超出项目目录：$path"
+    }
+    $ancestor = [IO.Path]::GetFullPath($path)
+    while ($ancestor.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+        if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "发布目录不能经过链接：$ancestor"
+        }
+        $ancestor = Split-Path -Parent $ancestor
+    }
+}
+$running = Get-Process DashFile -ErrorAction SilentlyContinue | Where-Object {
+    $_.Path -and [string]::Equals($_.Path, (Join-Path $target 'DashFile.exe'), [StringComparison]::OrdinalIgnoreCase)
+}
+if ($running) { throw "正式程序仍在运行，请正常退出后重试。构建结果已保留：$out" }
+if (-not (Test-Path -LiteralPath (Join-Path $out 'DashFile.exe'))) { throw '发布结果缺少 DashFile.exe' }
+
+New-Item -ItemType Directory -Force -Path $archive | Out-Null
+# 插件包独立存放，不装进纯净版。
+if (Test-Path -LiteralPath $pluginDist) {
+    Move-Item -LiteralPath $pluginDist -Destination (Join-Path $archive 'plugin-dist')
+}
+if (Test-Path -LiteralPath $target) { Move-Item -LiteralPath $target -Destination $previous }
+try { Move-Item -LiteralPath $out -Destination $target }
+catch {
+    if ((Test-Path -LiteralPath $previous) -and -not (Test-Path -LiteralPath $target)) {
+        Move-Item -LiteralPath $previous -Destination $target
+    }
+    throw
+}
+$out = $target
+Write-Host ("== 旧版与独立插件包：" + $archive + " ==") -ForegroundColor DarkGray
 
 $exeMb = [math]::Round((Get-Item (Join-Path $out "DashFile.exe")).Length/1MB,1)
 $allMb = [math]::Round(((Get-ChildItem $out -Recurse -File | Measure-Object Length -Sum).Sum/1MB),1)
