@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
@@ -617,6 +617,20 @@ await guardedManager.LoadAllAsync();
 Check("plugin lifecycle guard released after async completion", !guardedManager.IsLoading);
 SynchronizationContext.SetSynchronizationContext(previousContext);
 try { Directory.Delete(guardRoot, true); } catch { }
+
+// ---------- 工具子进程的工作目录（fastboot 依赖同目录 AdbWinApi.dll） ----------
+var toolRoot = Path.Combine(Path.GetTempPath(), "dsh-tool-" + Guid.NewGuid().ToString("N"));
+var fbDir = Path.Combine(toolRoot, "Binaries", "Fastboot");
+Directory.CreateDirectory(fbDir);
+var fbExe = Path.Combine(fbDir, "fastboot.exe");
+File.WriteAllBytes(fbExe, Array.Empty<byte>());
+var fbInfo = DashFile.Services.PowerService.ToolStartInfo(fbExe, new[] { "devices" });
+Check("tool working directory pinned to tool folder", fbInfo.WorkingDirectory == fbDir, fbInfo.WorkingDirectory);
+Check("tool start info keeps args verbatim without shell",
+    fbInfo.ArgumentList.Count == 1 && fbInfo.ArgumentList[0] == "devices" && !fbInfo.UseShellExecute);
+var bareInfo = DashFile.Services.PowerService.ToolStartInfo("fastboot", new[] { "devices" });
+Check("bare tool name leaves working directory to the caller", string.IsNullOrEmpty(bareInfo.WorkingDirectory));
+Directory.Delete(toolRoot, true);
 
 Console.WriteLine(fail == 0 ? "ALL PASS" : fail + " FAILED");
 

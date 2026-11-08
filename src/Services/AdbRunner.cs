@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -29,6 +29,9 @@ public sealed class AdbRunner
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        // 工作目录钉在 adb 自己所在目录：DLL 解析不依赖宿主进程的 CWD。
+        var adbDir = Path.GetDirectoryName(AdbPath);
+        if (!string.IsNullOrEmpty(adbDir) && Directory.Exists(adbDir)) psi.WorkingDirectory = adbDir;
         if (utf8)
         {
             psi.StandardOutputEncoding = Encoding.UTF8;

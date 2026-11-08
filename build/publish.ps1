@@ -39,7 +39,9 @@ $adbDir = Join-Path $out "Binaries\Adb"
 $fbDir  = Join-Path $out "Binaries\Fastboot"
 New-Item -ItemType Directory -Force -Path $adbDir, $fbDir, (Join-Path $out "Log") | Out-Null
 foreach ($f in @("adb.exe","AdbWinApi.dll","AdbWinUsbApi.dll")) { Copy-Item (Join-Path $bin $f) $adbDir -Force }
-Copy-Item (Join-Path $bin "fastboot.exe") $fbDir -Force
+# fastboot.exe 静态依赖 AdbWinApi.dll：必须与它同目录，加载器不会去兄弟目录找。
+# 1.3.2 及更早只搬了 exe，干净机器（PATH 里没有 platform-tools）一调 fastboot 就 0xC0000135。
+foreach ($f in @("fastboot.exe","AdbWinApi.dll","AdbWinUsbApi.dll")) { Copy-Item (Join-Path $bin $f) $fbDir -Force }
 
 # 使用说明：从 docs 同步（若存在）
 $readme = Join-Path $root "docs\使用说明.txt"

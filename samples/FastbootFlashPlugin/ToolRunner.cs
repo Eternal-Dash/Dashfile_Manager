@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 
 namespace FastbootFlashPlugin;
@@ -38,8 +38,13 @@ public sealed class NativeToolRunner : IToolRunner
     public async Task<ToolResult> RunAsync(Transport transport, IReadOnlyList<string> args, string? stdoutFile,
         TimeSpan? timeout, Action<string>? line, CancellationToken cancellationToken)
     {
-        var info = new ProcessStartInfo(transport == Transport.Fastboot ? FastbootPath : AdbPath)
+        var exe = transport == Transport.Fastboot ? FastbootPath : AdbPath;
+        var info = new ProcessStartInfo(exe)
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        // fastboot.exe 依赖同目录的 AdbWinApi.dll；工作目录不钉在工具目录时，
+        // 干净机器上加载器找不到 DLL，进程直接 0xC0000135 起不来。
+        var toolDir = Path.GetDirectoryName(exe);
+        if (!string.IsNullOrEmpty(toolDir) && Directory.Exists(toolDir)) info.WorkingDirectory = toolDir;
         foreach (var arg in args) info.ArgumentList.Add(arg);
         using var process = new Process { StartInfo = info };
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

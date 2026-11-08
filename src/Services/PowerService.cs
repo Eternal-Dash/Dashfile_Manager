@@ -33,26 +33,46 @@ public sealed class PowerService
         return name;
     }
 
+    /// <summary>
+    /// 子进程的启动参数。工作目录固定成该工具自己所在的目录。
+    /// fastboot.exe 依赖同目录的 AdbWinApi.dll，而 Windows 加载器只会按
+    /// 「exe 目录 → 系统目录 → 当前工作目录 → PATH」找 DLL。以前工作目录沿用宿主进程
+    /// （双击启动时是主程序目录），于是 Binaries\Fastboot 里没有该 DLL 的干净机器上
+    /// 一调就 0xC0000135 起不来，界面上只表现为"没有 fastboot 设备"。
+    /// </summary>
+    internal static ProcessStartInfo ToolStartInfo(string exe, IEnumerable<string> args)
+    {
+        var psi = new ProcessStartInfo(exe)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        var dir = Path.GetDirectoryName(exe);
+        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) psi.WorkingDirectory = dir;
+        foreach (var a in args) psi.ArgumentList.Add(a);
+        return psi;
+    }
+
     private static async Task<string> RunToolAsync(string exe, IEnumerable<string> args, CancellationToken ct)
     {
         try
         {
-            var psi = new ProcessStartInfo(exe)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            foreach (var a in args) psi.ArgumentList.Add(a);
-            using var p = Process.Start(psi);
+            using var p = Process.Start(ToolStartInfo(exe, args));
             if (p == null) return "";
             var so = p.StandardOutput.ReadToEndAsync(ct);
             var se = p.StandardError.ReadToEndAsync(ct);
             await p.WaitForExitAsync(ct).ConfigureAwait(false);
             return (await so) + (await se);
         }
-        catch { return ""; }
+        catch (Exception ex)
+        {
+            // 以前这里吞成空字符串：工具根本起不来时日志一片空白，
+            // 用户以为"包不缺文件"，我们也没法从日志里看出发生过什么。
+            AppLog.Add("无法启动 " + Path.GetFileName(exe) + "：" + ex.Message);
+            return "";
+        }
     }
 
     /// <summary>
