@@ -56,10 +56,10 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
             finally{if(entered)_serial.Release();Interlocked.Decrement(ref _active);}
         },CancellationToken.None);
     }
-    private async Task<HybridSession> Ensure(PluginTransferRequest request,CancellationToken ct)
+    private async Task<HybridSession> Ensure(PluginTransferRequest request,CancellationToken ct,bool forceReconnect=false)
     {
         var key=request.Serial+"|"+request.UseRoot+"|"+request.AdbPath+"|"+Wifi+"|"+MaxRails;
-        if(_context?.Session!=null&&_context.IsAlive&&_key==key)
+        if(!forceReconnect&&_context?.Session!=null&&_context.IsAlive&&_key==key)
         {
             try{await _context.Session.CheckAlive(ct).ConfigureAwait(false);return _context.Session;}
             catch(Exception) when(!ct.IsCancellationRequested){log("闲置连接已失效，在传输前重新建立通道。");}
@@ -77,7 +77,9 @@ public sealed class HybridProvider(string dataDirectory,Action<string> log) : IP
     private async Task TransferProbe(PluginTransferRequest request,CancellationToken ct)
     {
         await _serial.WaitAsync(ct).ConfigureAwait(false);
-        try{await Ensure(request,ct).ConfigureAwait(false);}finally{_serial.Release();}
+        // A healthy USB control connection says nothing about current LAN reachability.
+        // An explicit check must negotiate the available rails again.
+        try{await Ensure(request,ct,forceReconnect:true).ConfigureAwait(false);}finally{_serial.Release();}
     }
     public void Stop()
     {lock(_stopGate){var old=_stop;_stop=new();old.Cancel();old.Dispose();}}

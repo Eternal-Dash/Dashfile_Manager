@@ -14,6 +14,7 @@ public sealed class HybridSession : IAsyncDisposable
     private readonly HybridChannel _control;
     private readonly List<HybridChannel> _rails;
     private readonly SemaphoreSlim _gate = new(1,1);
+    private const int LanHandshakeTimeoutSeconds = 4;
     private bool _disposed;
     public string Serial { get; }
     public string Uid { get; }
@@ -51,7 +52,11 @@ public sealed class HybridSession : IAsyncDisposable
             }
             foreach(var endpoint in endpoints.Take(Math.Clamp(maxRails,1,4)))
             {
-                try { using var timeout=Deadline(ct,endpoint.Name=="USB"?8:1.5);rails.Add(await HybridChannel.Open(endpoint,token,certificate,timeout.Token)); }
+                try { using var timeout=Deadline(ct,endpoint.Name=="USB"?8:LanHandshakeTimeoutSeconds);rails.Add(await HybridChannel.Open(endpoint,token,certificate,timeout.Token)); }
+                catch(OperationCanceledException) when (endpoint.Name!="USB"&&!ct.IsCancellationRequested)
+                {
+                    log?.Invoke($"{endpoint.Name} 在 {LanHandshakeTimeoutSeconds} 秒内未完成连接或加密握手，暂用 USB。");
+                }
                 catch(Exception ex) when (endpoint.Name!="USB"&&!ct.IsCancellationRequested) { log?.Invoke(endpoint.Name+"不可达，跳过该通道："+ex.GetType().Name); }
             }
             if(rails.Count==0)throw new IOException("USB 传输通道未连接。");

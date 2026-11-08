@@ -8,8 +8,8 @@
     <AssemblyName>DashFile</AssemblyName>
     <RootNamespace>DashFile</RootNamespace>
     <!-- 与 AppInfo.Version 保持一致：界面显示用 AppInfo，文件属性用这里 -->
-    <Version>1.3.0</Version>
-    <FileVersion>1.3.0.0</FileVersion>
+    <Version>1.3.2</Version>
+    <FileVersion>1.3.2.0</FileVersion>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
@@ -79,6 +79,11 @@
     <TrimmerRootAssembly Include="System.Text.Json" />
     <TrimmerRootAssembly Include="System.Net.Sockets" />
     <TrimmerRootAssembly Include="System.Net.Security" />
+    <!-- 双轨插件在运行时才调用 IPAddress.IsLoopback 和 Uri.IsHexDigit。 -->
+    <TrimmerRootAssembly Include="System.Net.Primitives" />
+    <TrimmerRootAssembly Include="System.Private.Uri" />
+    <!-- 保留从 System.Runtime 转发到 CoreLib 的类型，例如插件的 System.IO.RandomAccess。 -->
+    <TrimmerRootAssembly Include="System.Runtime" />
     <!-- 插件是运行时加载的外部程序集，裁剪器看不到它调用哪些框架方法；
          保住 CoreLib 这套基础 API，插件才不会被裁出 MissingMethod。 -->
     <TrimmerRootAssembly Include="System.Private.CoreLib" />

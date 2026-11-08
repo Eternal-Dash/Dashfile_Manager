@@ -122,6 +122,7 @@
   <Grid RowDefinitions="Auto,*" RowSpacing="10">
       <!-- 页内导航：常驻滑动标签条（和主窗口顶部同一套实现，切换时滑块滑过去并自适应宽度） -->
       <Border Classes="card" Padding="6,4" HorizontalAlignment="Left">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
         <papi:SegmentedTabs x:Name="Nav" SelectedIndex="0" SelectionChanged="OnNavSelectionChanged"
                             AnimationMs="240">
           <Button Classes="seg tabbtn" Content="概览"/>
@@ -131,6 +132,7 @@
           <Button Classes="seg tabbtn" Content="A/B 批处理"/>
           <Button Classes="seg tabbtn" Content="镜像扫描"/>
         </papi:SegmentedTabs>
+        </ScrollViewer>
       </Border>
 
       <ScrollViewer Grid.Row="1" x:Name="PageScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -143,11 +145,11 @@
                   <TextBlock Text="把 AVB 操作收进一个干净的工作台" Classes="h2"/>
                   <TextBlock Classes="sub" MaxWidth="680"
                              Text="解析已有镜像的 AVB 头与描述符，用内置 AOSP 密钥或自定义私钥重签分区；也可以汇总子分区描述符构建 vbmeta。所有操作只写目标副本，源镜像不改动。"/>
-                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                  <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,4,0,0">
                     <Button Classes="primary" Content="开始签名" Click="OnQuickSign"/>
                     <Button Classes="tool" Content="构建 VBMeta" Click="OnQuickVbmeta"/>
                     <Button Classes="tool" Content="扫描目录" Click="OnQuickScan"/>
-                  </StackPanel>
+                  </WrapPanel>
                 </StackPanel>
                 <Border Grid.Column="1" Width="138" Height="138" CornerRadius="26"
                         Background="{DynamicResource AccentBg}" BorderBrush="{DynamicResource AccentDeep}"
@@ -297,10 +299,10 @@
                   <Button Grid.Column="2" Classes="tool" Content="另存…" VerticalAlignment="Bottom"
                           Click="OnBrowseOutput"/>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="10">
+                <WrapPanel ItemSpacing="10" LineSpacing="6">
                   <Button x:Name="SignBtn" Classes="primary" Content="开始签名" Click="OnSign"/>
                   <Button Classes="tool" Content="清空日志" Click="OnClearSignLog"/>
-                </StackPanel>
+                </WrapPanel>
               </StackPanel>
             </Border>
 
@@ -377,10 +379,10 @@
                   <TextBox x:Name="VbOut" Watermark="输出 vbmeta.img 路径"/>
                   <Button Grid.Column="1" Classes="tool" Content="另存…" Click="OnBrowseVbOut"/>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="10">
+                <WrapPanel ItemSpacing="10" LineSpacing="6">
                   <Button x:Name="VbBtn" Classes="primary" Content="生成 VBMeta" Click="OnBuildVbmeta"/>
                   <Button Classes="tool" Content="清空日志" Click="OnClearVbLog"/>
-                </StackPanel>
+                </WrapPanel>
               </StackPanel>
             </Border>
 
@@ -433,10 +435,10 @@
                   </StackPanel>
                 </Grid>
                 <TextBlock x:Name="RbModeHint" Classes="sub" Text=""/>
-                <StackPanel Orientation="Horizontal" Spacing="18">
+                <WrapPanel ItemSpacing="18" LineSpacing="6">
                   <CheckBox x:Name="RbRegenSalt" Content="重新生成 Salt"/>
                   <CheckBox x:Name="RbVerifyOnly" Content="仅校验，不写入"/>
-                </StackPanel>
+                </WrapPanel>
                 <ComboBox x:Name="RbKeyMode" SelectedIndex="0" SelectionChanged="OnRbKeyModeChanged">
                   <ComboBoxItem Content="内置 AOSP testkey"/>
                   <ComboBoxItem Content="自定义私钥 (.pem)"/>
@@ -445,10 +447,10 @@
                   <TextBox x:Name="RbKeyBox" Watermark="自定义 .pem"/>
                   <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseRbKey"/>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="10">
+                <WrapPanel ItemSpacing="10" LineSpacing="6">
                   <Button x:Name="RbBtn" Classes="primary" Content="开始重建" Click="OnRunRebuild"/>
-                  <TextBlock x:Name="RbStatus" Classes="sub" VerticalAlignment="Center" Text=""/>
-                </StackPanel>
+                  <TextBlock x:Name="RbStatus" Classes="sub" MaxWidth="320" TextWrapping="Wrap" VerticalAlignment="Center" Text=""/>
+                </WrapPanel>
                 <TextBox x:Name="RbLog" Classes="mono" IsReadOnly="True" Height="140"
                          AcceptsReturn="True" TextWrapping="Wrap"/>
               </StackPanel>
@@ -468,11 +470,11 @@
                   <TextBox x:Name="BatchOutDir" Watermark="输出目录"/>
                   <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseBatchOut"/>
                 </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="18">
+                <WrapPanel ItemSpacing="18" LineSpacing="6">
                   <CheckBox x:Name="UnifyRollback" Content="统一回滚值到最高值" IsChecked="True"/>
                   <CheckBox x:Name="StripAb" Content="输出名去掉 _a/_b"/>
                   <CheckBox x:Name="BatchUseAosp" Content="使用内置 AOSP 密钥" IsChecked="True"/>
-                </StackPanel>
+                </WrapPanel>
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" x:Name="BatchCustomKeyRow" IsVisible="False">
                   <TextBox x:Name="BatchKeyBox" Watermark="自定义 .pem"/>
                   <Button Grid.Column="1" Classes="tool" Content="选择…" Click="OnBrowseBatchKey"/>
@@ -498,10 +500,10 @@
                     </DataTemplate>
                   </ListBox.ItemTemplate>
                 </ListBox>
-                <StackPanel Orientation="Horizontal" Spacing="10">
+                <WrapPanel ItemSpacing="10" LineSpacing="6">
                   <Button x:Name="BatchBtn" Classes="primary" Content="批量重签" Click="OnRunBatch"/>
-                  <TextBlock x:Name="BatchStatus" Classes="sub" VerticalAlignment="Center" Text=""/>
-                </StackPanel>
+                  <TextBlock x:Name="BatchStatus" Classes="sub" MaxWidth="320" TextWrapping="Wrap" VerticalAlignment="Center" Text=""/>
+                </WrapPanel>
                 <TextBox x:Name="BatchLog" Classes="mono" IsReadOnly="True" Height="110"
                          AcceptsReturn="True" TextWrapping="Wrap"/>
               </StackPanel>

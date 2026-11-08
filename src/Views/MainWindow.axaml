@@ -1010,7 +1010,7 @@
             <TextBlock Text="插件" FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextMain}" VerticalAlignment="Center"/>
           </StackPanel>
-          <TextBlock Classes="sub" Text="{Binding PluginsStatus}"/>
+          <TextBlock Classes="sub" Text="{Binding PluginsStatus}" TextTrimming="CharacterEllipsis"/>
         </StackPanel>
         <Button Grid.Column="1" Classes="tool" Content="安装 .dfp" Click="OnPluginInstallClick"
                 VerticalAlignment="Center" ToolTip.Tip="安装 .dfp 插件包（也可把 .dfp 拖进本页）"/>
@@ -1097,49 +1097,47 @@
 
         <Border Grid.Column="2" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
                 BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="16,14" ClipToBounds="True">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10">
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-              <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+          <Grid x:Name="PluginDetails" RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="10">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+              <StackPanel Spacing="4" VerticalAlignment="Center">
                 <TextBlock Text="{Binding SelectedPlugin.Name}" FontSize="16" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextMain}"/>
-                <!-- 版本行 + 插件推送的能力徽标 / 状态（都不换行，窄窗口优先保留信息、压缩副标题） -->
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                  <TextBlock Text="{Binding SelectedPlugin.SubLine}" FontSize="11.5"
-                             Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                  <ItemsControl ItemsSource="{Binding PluginHeaderBadges}" VerticalAlignment="Center">
+                           Foreground="{DynamicResource TextMain}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding SelectedPlugin.Name}"/>
+                <TextBlock Text="{Binding SelectedPlugin.SubLine}" FontSize="11.5"
+                           Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding SelectedPlugin.SubLine}"/>
+                <TextBlock Text="{Binding PluginHeaderSubtitle}" FontSize="12.5"
+                           Foreground="{DynamicResource TextSub}" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding HasPluginSubtitle}" ToolTip.Tip="{Binding PluginHeaderSubtitle}"/>
+              </StackPanel>
+              <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="4" Margin="0,5,0,0">
+                  <ItemsControl ItemsSource="{Binding PluginHeaderBadges}">
                     <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
+                      <ItemsPanelTemplate><WrapPanel ItemSpacing="6" LineSpacing="4"/></ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <Border Background="{DynamicResource ChipBg}" BorderBrush="{DynamicResource StrokeSoft}"
                                 BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2">
-                          <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                          <TextBlock Text="{Binding}" FontSize="11" Foreground="{DynamicResource TextMuted}"
+                                     MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}"/>
                         </Border>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                   <Border Background="{DynamicResource AccentBg}" BorderBrush="{DynamicResource AccentDeep}"
                           BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="9,2"
-                          VerticalAlignment="Center" IsVisible="{Binding HasPluginStatus}">
+                          HorizontalAlignment="Left" IsVisible="{Binding HasPluginStatus}">
                     <TextBlock Text="{Binding PluginHeaderStatus}" FontSize="11.5"
-                               Foreground="{DynamicResource AccentText}"/>
+                               Foreground="{DynamicResource AccentText}" TextWrapping="Wrap"/>
                   </Border>
-                </StackPanel>
               </StackPanel>
-
-              <!-- 副标题：占满剩余宽度，空间不够时省略号截断 -->
-              <TextBlock Grid.Column="1" Text="{Binding PluginHeaderSubtitle}" FontSize="12.5"
-                         Foreground="{DynamicResource TextSub}" VerticalAlignment="Center"
-                         TextTrimming="CharacterEllipsis" IsVisible="{Binding HasPluginSubtitle}"
-                         Margin="14,0,0,0"/>
-
-              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button Classes="tool" Content="卸载" Click="OnPluginUninstallClick"
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                <Button x:Name="PluginUninstallButton" Classes="tool" Content="卸载" Click="OnPluginUninstallClick"
                         Foreground="{DynamicResource Danger}" ToolTip.Tip="卸载插件（可同时删除插件数据）"/>
                 <TextBlock Text="启用" FontSize="12" Foreground="{DynamicResource TextMuted}"
                            VerticalAlignment="Center"/>
-                <Button Classes="switch" Classes.on="{Binding SelectedPlugin.Enabled}"
+                <Button x:Name="PluginEnabledButton" Classes="switch" Classes.on="{Binding SelectedPlugin.Enabled}"
                         Command="{Binding TogglePluginCommand}" CommandParameter="{Binding SelectedPlugin}"
                         ToolTip.Tip="启用 / 禁用插件">
                   <Grid Width="46" Height="24">
@@ -1155,14 +1153,16 @@
 
             <ItemsControl Grid.Row="2" ItemsSource="{Binding PluginGlobalActions}">
               <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="8"/></ItemsPanelTemplate>
+                <ItemsPanelTemplate><WrapPanel ItemSpacing="8" LineSpacing="6"/></ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Button Classes="tool" Content="{Binding Action.Title}"
+                  <Button Classes="tool"
                           ToolTip.Tip="{Binding Action.Description}"
                           Command="{Binding $parent[ItemsControl].DataContext.RunPluginGlobalActionCommand}"
-                          CommandParameter="{Binding}"/>
+                          CommandParameter="{Binding}">
+                    <TextBlock Text="{Binding Action.Title}" MaxWidth="240" TextWrapping="Wrap"/>
+                  </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -1170,8 +1170,10 @@
             <!-- 子页标签：常驻在上方，选中态用滑动指示器（不再是一排会发光/带补间的普通按钮） -->
             <Border Grid.Row="3" Classes="seg" HorizontalAlignment="Left"
                     IsVisible="{Binding ShowPluginTabs}">
-              <papi:SegmentedTabs ItemsSource="{Binding PluginPages}" DisplayMemberPath="Title"
-                                  SelectedItem="{Binding SelectedPluginPage, Mode=TwoWay}"/>
+              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <papi:SegmentedTabs ItemsSource="{Binding PluginPages}" DisplayMemberPath="Title"
+                                    SelectedItem="{Binding SelectedPluginPage, Mode=TwoWay}"/>
+              </ScrollViewer>
             </Border>
 
             <Border Grid.Row="4" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource StrokeSoft}"
@@ -1254,7 +1256,8 @@
                       <ColorPicker x:Name="HyprlandBackgroundPicker" Grid.Column="1" Width="120" Color="{Binding HyprlandBackgroundColor, Mode=TwoWay}" ColorSpectrumShape="Ring" IsAlphaEnabled="False" IsColorPaletteVisible="False" IsColorComponentsVisible="False" IsColorSpectrumVisible="True" IsHexInputVisible="True" ToolTip.Tip="点击打开圆形取色板；亮度滑块可调出灰黑背景"/>
                     </Grid>
                     <StackPanel Spacing="4">
-                      <TextBlock Text="{Binding HyprlandTransparency, StringFormat='背景透明度 {0:0}%'}" FontSize="12" Foreground="{DynamicResource TextSub}"/>
+                      <TextBlock Text="{Binding HyprlandTransparency, StringFormat='背景透明度 {0:0}%'}" FontSize="12" Foreground="{DynamicResource TextSub}"
+                                 ToolTip.Tip="关闭磨砂玻璃可获得更明显的透光。文字和卡片保留灰黑底色。"/>
                       <Slider x:Name="HyprlandTransparencySlider" Minimum="0" Maximum="80" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding HyprlandTransparency, Mode=TwoWay}"/>
                     </StackPanel>
                     <Button Classes="tool" Content="恢复灰黑背景" Command="{Binding ResetHyprlandBackgroundCommand}" HorizontalAlignment="Left"/>

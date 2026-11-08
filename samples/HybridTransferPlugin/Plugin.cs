@@ -13,7 +13,7 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
     private IDisposable? _registration;
     public bool IsOperationActive => _provider?.Active == true;
     public string OperationDescription => "双轨文件传输 / 通道检测";
-    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="DashFile - 双轨快传", Version="1.0.2", Author="EternalDash · 原项目 weixiansen574", Description="按大小选择 USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
+    public override PluginMetadata Metadata => new() { Id="com.dashfile.hybridtransfer", Name="DashFile - 双轨快传", Version="1.0.4", Author="EternalDash · 原项目 weixiansen574", Description="按大小选择 USB 与局域网多通道文件传输，逐文件 SHA-256 校验" };
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
         if (Host is not IPluginFileTransferHost transfers) throw new NotSupportedException("双轨快传需要 DashFile 1.1.0 / API 3。");
@@ -32,7 +32,7 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
         var enabled=new CheckBox { Content="按大小自动选择双轨快传",IsChecked=provider.IsEnabled };
         enabled.IsCheckedChanged+=(_,_)=>{provider.IsEnabled=enabled.IsChecked==true;Host.Settings.Set("enabled",provider.IsEnabled);Host.Settings.Save();};content.Children.Add(enabled);
         content.Children.Add(Text("双轨快传触发阈值",16));
-        var editor=new StackPanel { Orientation=Orientation.Horizontal,Spacing=12 };
+        var editor=new WrapPanel { ItemSpacing=12,LineSpacing=8 };
         var useGb=provider.ThresholdBytes%TransferThreshold.Gigabyte==0;
         var size=new NumericUpDown { Width=180,Minimum=1,Maximum=1048576,Value=1024,Increment=1,FormatString="0" };
         var unit=new ComboBox { Width=85,ItemsSource=new[]{"MB","GB"},SelectedIndex=useGb?1:0 };
@@ -73,7 +73,7 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
         wifi.IsCheckedChanged+=(_,_)=>{provider.Wifi=wifi.IsChecked==true;Host.Settings.Set("wifi",provider.Wifi);Host.Settings.Save();};content.Children.Add(wifi);
         content.Children.Add(Text("USB 保持连接，手机和电脑连接同一局域网。Wi-Fi 不可达时仍使用 USB 单通道，并如实显示通道；设备临时服务无法启动时，宿主会提示并使用原有 ADB 传输。已开始的传输失败不会自动重试覆盖。"));
         var status=Text(provider.ChannelSummary);status.FontWeight=FontWeight.SemiBold;content.Children.Add(status);
-        var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=12};
+        var actions=new WrapPanel { ItemSpacing=12,LineSpacing=8 };
         var probe=new Button { Content="检测传输通道",Padding=new Thickness(18,10) };
         var stop=new Button { Content="取消插件传输",Padding=new Thickness(18,10) };
         probe.Classes.Add("tool");probe.Classes.Add("pri");stop.Classes.Add("tool");
@@ -81,7 +81,14 @@ public sealed class HybridPlugin : PluginBase, IPluginOperationGuard
         {
             if(!Host.Device.IsConnected){status.Text="请连接处于 Android / Recovery 的 ADB 设备，并完成 USB 调试授权。";return;}
             probe.IsEnabled=false;status.Text="正在建立加密通道…";
-            try{await provider.Probe(new(Host.Device.Serial,Host.Device.IsRoot,transfers.AdbExecutablePath,PluginTransferDirection.Download,"/sdcard/",""),CancellationToken.None);status.Text=provider.ChannelSummary;}
+            try
+            {
+                await provider.Probe(new(Host.Device.Serial,Host.Device.IsRoot,transfers.AdbExecutablePath,
+                    PluginTransferDirection.Download,"/sdcard/",""),CancellationToken.None);
+                status.Text = provider.Wifi && provider.ChannelSummary == "USB 单通道"
+                    ? "USB 单通道 · 本次未建立 Wi-Fi，可以重新检测。"
+                    : provider.ChannelSummary;
+            }
             catch(OperationCanceledException){status.Text="已取消检测。";}
             catch(Exception ex){status.Text="通道未就绪："+ex.Message;}
             finally{probe.IsEnabled=true;}

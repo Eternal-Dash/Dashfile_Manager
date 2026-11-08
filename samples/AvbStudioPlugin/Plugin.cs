@@ -10,7 +10,7 @@ public sealed class AvbPlugin : PluginBase
     {
         Id = "com.dashfile.avbstudio",
         Name = "DashFile - AVB 工作台",
-        Version = "1.0.0",
+        Version = "1.0.1",
         Author = "DashFile",
         Description = "AVB 镜像解析、签名、VBMeta 构建、A/B 批处理与扫描。",
     };

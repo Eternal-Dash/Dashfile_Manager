@@ -204,11 +204,12 @@ public static class ThemeService
     {
         var light = Appearance == "light" && !HyprlandEnabled;
         app.Resources["SectionRuleOpacity"] = light ? 1d : 0.6d;
-        app.Resources["WindowMaterialLevels"] = light && MaterialEnabled
-            ? (GlassEnabled
-                ? new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Mica, WindowTransparencyLevel.None }
-                : new[] { WindowTransparencyLevel.Mica, WindowTransparencyLevel.None })
-            : new[] { WindowTransparencyLevel.None };
+        if (!HyprlandEnabled)
+            app.Resources["WindowMaterialLevels"] = light && MaterialEnabled
+                ? (GlassEnabled
+                    ? new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Mica, WindowTransparencyLevel.None }
+                    : new[] { WindowTransparencyLevel.Mica, WindowTransparencyLevel.None })
+                : new[] { WindowTransparencyLevel.None };
         foreach (var item in new (string Key, string Dark, string Light)[]
         {
             ("TextMain", "#FFFFFF", "#171C25"), ("TextSub", "#DFDFE4", "#344052"),
@@ -248,7 +249,7 @@ public static class ThemeService
         // One OS backdrop; never an independently blurred surface for each row.
         foreach (var (key, value) in new (string, string)[]
         {
-            ("Bg", "#242424"), ("Panel", "#302D2D2D"), ("PanelAlt", "#63333333"),
+            ("Bg", "#242424"), ("Panel", "#8C2D2D2D"), ("PanelAlt", "#A6333333"),
             ("ContentSurface", "#18333333"), ("TextMain", "#F0F0F0"), ("TextSub", "#D2D2D2"),
             ("TextMuted", "#ADADAD"), ("Stroke", "#626262"), ("StrokeSoft", "#444444"),
             ("Hairline", "#868686"), ("SurfaceEdge", "#66FFFFFF"),
@@ -272,7 +273,11 @@ public static class ThemeService
         Set(app, "BtnPriBg", tint);
         Set(app, "BtnPriHover", Blend(tint, Colors.White, 0.35));
         ApplyHyprlandTransparency(HyprlandTransparency);
-        app.Resources["WindowMaterialLevels"] = new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Mica, WindowTransparencyLevel.None };
+        // Use the app's own alpha tint for visible window transparency.
+        // Acrylic adds its own strong tint; use it only when frosted glass is requested.
+        app.Resources["WindowMaterialLevels"] = GlassEnabled
+            ? new[] { WindowTransparencyLevel.AcrylicBlur, WindowTransparencyLevel.Transparent, WindowTransparencyLevel.None }
+            : new[] { WindowTransparencyLevel.Transparent, WindowTransparencyLevel.None };
         app.Resources["RadiusCard"] = new CornerRadius(10);
         app.Resources["RadiusCtl"] = new CornerRadius(6);
         SetSystemAccent(app, tint);

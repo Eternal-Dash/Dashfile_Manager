@@ -85,6 +85,13 @@ DashFile.Services.ThemeService.ApplyHyprland(true,"m3","#FFFFFF");Pump();
 Check("restored layout keeps window dimensions",layoutWindow.Width==960&&layoutWindow.Height==500);
 if(render){using var hyprFrame=layoutWindow.CaptureRenderedFrame();hyprFrame?.Save(Path.Combine(Path.GetDirectoryName(args[1])!,"DashFile_Hyprland风格_布局检查.png"));}
 Check("Hyprland uses a dark theme and native backdrop",Application.Current!.RequestedThemeVariant==Avalonia.Styling.ThemeVariant.Dark && DashFile.Services.ThemeService.HyprlandEnabled);
+DashFile.Services.ThemeService.ApplyGlass(false, "m3", "#FFFFFF");
+Check("Hyprland prefers visible transparency without frosted glass",
+    ((WindowTransparencyLevel[])Application.Current!.Resources["WindowMaterialLevels"]!)[0] == WindowTransparencyLevel.Transparent);
+DashFile.Services.ThemeService.ApplyGlass(true, "m3", "#FFFFFF");
+Check("Hyprland can still opt into native acrylic",
+    ((WindowTransparencyLevel[])Application.Current!.Resources["WindowMaterialLevels"]!)[0] == WindowTransparencyLevel.AcrylicBlur);
+DashFile.Services.ThemeService.ApplyGlass(false, "m3", "#FFFFFF");
 Check("white Hyprland accent and interactive surfaces are neutral",
     new[] { "Accent", "AccentHover", "AccentFill", "SelBorder", "BtnPriBg", "TrackOff", "TrackOffHover", "KnobFill" }
         .All(key => Application.Current!.Resources[key] is SolidColorBrush brush &&
@@ -148,6 +155,37 @@ appVm.AppSortIndex = 1;
 Check("descending APK sort places unknown sizes last", appVm.FilteredApps.SequenceEqual(new[] { wechat, baidu, ali }));
 appVm.AppSortDirection = 0;
 Check("ascending APK sort places unknown sizes last", appVm.FilteredApps.SequenceEqual(new[] { baidu, wechat, ali }));
+
+var pluginPage = host.GetControl<Grid>("PluginPage");
+((Panel)pluginPage.Parent!).Children.Remove(pluginPage);
+appVm.SelectedTab = 4;
+appVm.SelectedPlugin = new DashFile.Models.PluginInfo
+{
+    Id = "test.layout", Name = new string('长', 65), Author = new string('署', 55),
+    Version = "1.0.0", Enabled = true, StateText = "已加载"
+};
+for (var i = 0; i < 8; i++) appVm.PluginHeaderBadges.Add("长能力徽标和兼容性说明 " + i);
+appVm.PluginHeaderSubtitle = new string('说', 50);
+appVm.PluginHeaderStatus = new string('态', 60);
+pluginPage.DataContext = appVm;
+var pluginWindow = new Window { Width = 960, Height = 640, Content = pluginPage };
+pluginWindow.Show();
+Pump();
+var details = host.GetControl<Grid>("PluginDetails");
+bool InsidePluginDetails(Control button)
+{
+    var position = button.TranslatePoint(default, details);
+    return position is { } point && point.X >= 0 && button.Bounds.Width > 0 &&
+           point.X + button.Bounds.Width <= details.Bounds.Width + 1;
+}
+Check("long plugin metadata leaves uninstall and enable buttons fully visible at minimum width",
+    InsidePluginDetails(host.GetControl<Button>("PluginUninstallButton")) &&
+    InsidePluginDetails(host.GetControl<Button>("PluginEnabledButton")));
+var badgeRows = details.GetVisualDescendants().OfType<WrapPanel>()
+    .FirstOrDefault(panel => panel.Children.Count == 8);
+Check("plugin badges wrap to another row instead of pushing the detail controls out",
+    badgeRows?.Children.Select(child => child.Bounds.Y).Distinct().Count() > 1);
+pluginWindow.Close();
 
 Console.WriteLine($"{passed} passed, {failed} failed; headless only, no device operations.");
 return failed==0?0:1;
