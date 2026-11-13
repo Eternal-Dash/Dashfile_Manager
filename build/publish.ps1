@@ -117,6 +117,14 @@ $running = Get-Process DashFile -ErrorAction SilentlyContinue | Where-Object {
     $_.Path -and [string]::Equals($_.Path, (Join-Path $target 'DashFile.exe'), [StringComparison]::OrdinalIgnoreCase)
 }
 if ($running) { throw "正式程序仍在运行，请正常退出后重试。构建结果已保留：$out" }
+# 从 Binaries\Adb 启动的 adb.exe 会一直驻留，把目录锁住；这时 Move-Item 只搬得走一半，
+# 旧 DashFile\ 会变成"只剩子目录、没有 exe"的残骸。宁可提前拒绝，也不要半途换目录。
+# 这里不主动杀进程：它可能正在传文件。
+$stray = @(Get-CimInstance Win32_Process -Filter "Name='adb.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase) })
+if ($stray.Count -gt 0) {
+    throw ("本目录的 adb.exe 还在运行（PID " + (($stray | ForEach-Object { $_.ProcessId }) -join ',') + "），会锁住 Binaries\Adb。请先关闭程序并结束这个 adb 进程后重试。构建结果已保留：" + $out)
+}
 if (-not (Test-Path -LiteralPath (Join-Path $out 'DashFile.exe'))) { throw '发布结果缺少 DashFile.exe' }
 
 New-Item -ItemType Directory -Force -Path $archive | Out-Null
