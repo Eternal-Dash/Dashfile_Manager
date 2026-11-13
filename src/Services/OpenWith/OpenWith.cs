@@ -110,7 +110,16 @@ public static class OpenWith
         return i < 0 || i == name.Length - 1 ? "" : name[(i + 1)..].ToLowerInvariant();
     }
 
-    /// <summary>左键双击的默认动作；返回 null 表示无合适工具，应弹出「打开方式」。</summary>
+    /// <summary>
+    /// 双击文件时的默认动作：先认后缀，后缀不认识时才看可执行位。
+    /// 内部存储（/sdcard，FUSE）上的文件常年是 0770——图片、文档也带 x 位，
+    /// 若先判可执行位，.png 会被当成脚本送进「执行命令」页，用户看到的就是"图片打不开"。
+    /// 返回 null 表示没有合适工具，应弹出「打开方式」。
+    /// </summary>
+    public static FileAction? FirstAction(string name, bool isExec)
+        => DefaultFor(name) ?? (isExec ? FileAction.ScriptRun : null);
+
+    /// <summary>按后缀猜动作；返回 null 表示不认识这个后缀。</summary>
     public static FileAction? DefaultFor(string name)
     {
         var ext = Ext(name);

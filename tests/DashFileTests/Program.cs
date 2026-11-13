@@ -632,6 +632,20 @@ var bareInfo = DashFile.Services.PowerService.ToolStartInfo("fastboot", new[] { 
 Check("bare tool name leaves working directory to the caller", string.IsNullOrEmpty(bareInfo.WorkingDirectory));
 Directory.Delete(toolRoot, true);
 
+// ---------- 双击动作：后缀优先，可执行位兜底（/sdcard 上图片也带 x 位） ----------
+Check("png with exec bit still opens image viewer",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("1788003955375.png", true) == DashFile.Services.OpenWith.FileAction.ImagePreview);
+Check("jpg with exec bit opens image viewer",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("IMG_0001.JPG", true) == DashFile.Services.OpenWith.FileAction.ImagePreview);
+Check("shell script opens run dialog",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("flash.sh", true) == DashFile.Services.OpenWith.FileAction.ScriptRun);
+Check("extensionless executable opens run dialog",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("busybox", true) == DashFile.Services.OpenWith.FileAction.ScriptRun);
+Check("extensionless non-executable has no default action",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("busybox", false) == null);
+Check("text with exec bit is still text",
+    DashFile.Services.OpenWith.OpenWith.FirstAction("notes.txt", true) == DashFile.Services.OpenWith.FileAction.EditText);
+
 Console.WriteLine(fail == 0 ? "ALL PASS" : fail + " FAILED");
 
 return fail;

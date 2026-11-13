@@ -1203,14 +1203,8 @@ public partial class MainWindow : Window
             await Vm.OpenEntryAsync(entry);
             return;
         }
-        // 可执行文件不直接跑：先弹「执行命令」页，让用户确认/改参数
-        if (entry.IsExec)
-        {
-            await RunOpenWithAsync(entry, FileAction.ScriptRun);
-            return;
-        }
-
-        var action = OpenWith.DefaultFor(entry.Name);
+        // 先认后缀，后缀不认识才看可执行位（/sdcard 上图片也带 x 位，见 OpenWith.FirstAction）
+        var action = OpenWith.FirstAction(entry.Name, entry.IsExec);
         if (action == null)
         {
             ShowContextMenu(entry);
