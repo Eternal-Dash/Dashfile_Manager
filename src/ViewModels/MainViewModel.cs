@@ -38,14 +38,6 @@ public partial class MainViewModel : ObservableObject
         _power = new PowerService(_runner);
         AdbPath = adb;
         FileTransfers.Status += message => Avalonia.Threading.Dispatcher.UIThread.Post(() => LogLine(message));
-        FileTransfers.Operations.Started += operation => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            var owner=(Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-            if(owner==null||operation.Snapshot.Finished)return;
-            try{new DashFile.Views.TransferProgressWindow(operation).Show(owner);}
-            catch(Exception ex){operation.Cancel();LogLine("传输窗口无法打开："+ex.Message);}
-        });
-
         // 说明：设备检测统一走 StartWatchdog() 的 1.2s 轮询 + WM_DEVICECHANGE 加速。
         // （原来的 AdbDeviceTracker 从未被启动/订阅，已作为死代码删除）
 
@@ -170,7 +162,7 @@ public partial class MainViewModel : ObservableObject
                 _treeSyncPending = false;
                 SyncTreeAsync(CurrentPath, _entriesRaw).Safe("同步目录树");
             }
-            PrefetchAsync(_entriesRaw).Safe("预取目录");
+            RevalidateAsync(CurrentPath).Safe("刷新当前目录");
         }
         else _prefetchCts?.Cancel();
         if (value == 2) LoadModulesAsync().Safe("读取模块", m => StatusText = m);
@@ -871,8 +863,9 @@ public partial class MainViewModel : ObservableObject
         // 给首帧和已经排队的输入让路。首次设备扫描结束后再开始轮询。
         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { },
             Avalonia.Threading.DispatcherPriority.Background);
+        var devices = RefreshDevicesAsync();
         InitializePluginsAsync().Safe("加载插件", m => StatusText = m);
-        await RefreshDevicesAsync();
+        await devices;
         StartWatchdog();
         PerfProbeAsync().Safe("性能探针");
     }
@@ -940,8 +933,7 @@ public partial class MainViewModel : ObservableObject
             // adb、fastboot 都看不见时，最后再问一句 Windows：设备是不是还插着
             _usbState = list.Count == 0 ? await ProbeUsbAsync() : "";
 
-            var sig = string.Join(",", list.OrderBy(d => d.Serial)
-                                           .Select(d => d.Serial + ":" + d.State));
+            var sig = DeviceSignature(list);
             if (string.Equals(sig, _lastSignature, StringComparison.Ordinal)) return;
             _lastSignature = sig;
 
@@ -951,6 +943,9 @@ public partial class MainViewModel : ObservableObject
         catch { }
         finally { _watchBusy = false; }
     }
+
+    private static string DeviceSignature(IEnumerable<DeviceInfo> devices)
+        => string.Join(",", devices.OrderBy(d => d.Serial).Select(d => d.Serial + ":" + d.State));
 
     private async Task<DeviceInfo?> ProbeFastbootAsync()
     {
@@ -1066,6 +1061,7 @@ public partial class MainViewModel : ObservableObject
 
         _fs = null;
         IsRoot = false;
+        ClearFileListing();
         ClearDeviceInfo();
 
         DevStatus = name;
@@ -1130,7 +1126,7 @@ public partial class MainViewModel : ObservableObject
                 _monitor?.Stop();
                 _sampling = false;
                 _fs = null; IsRoot = false;
-                Entries.Clear(); IsEmpty = true;
+                ClearFileListing();
                 Modules.Clear(); ModulesEmpty = true;
                 ClearApps(); AppsStatus = "未连接设备"; _apps = null; _modules = null;
                 ClearDeviceInfo();
@@ -1160,12 +1156,13 @@ public partial class MainViewModel : ObservableObject
                 _monitor?.Stop();
                 _sampling = false;
                 _fs = null; IsRoot = false;
+                ClearFileListing();
                 ClearDeviceInfo();
                 return;
             }
 
             _lastKnownSerial = online.Serial;
-            var pick = list.FirstOrDefault(d => d.Serial == keep) ?? online;
+            var pick = list.FirstOrDefault(d => d.Serial == keep && d.IsOnline) ?? online;
             if (SelectedDevice?.Serial != pick.Serial)
             {
                 // 只是 Devices.Clear() 把 ComboBox 的选中项清掉了：已经连着同一台设备时
@@ -1239,13 +1236,14 @@ public partial class MainViewModel : ObservableObject
                 _sampling = false;
                 IsRoot = false;
                 _fs = null;
-                Entries.Clear();
-                IsEmpty = true;
+                ClearFileListing();
                 return;
             }
 
-            var pick = Devices.FirstOrDefault(d => d.Serial == keep)
-                       ?? Devices.FirstOrDefault(d => d.IsOnline) ?? Devices[0];
+            _lastSignature = DeviceSignature(list);
+            var pick = Devices.FirstOrDefault(d => d.Serial == keep && d.IsOnline)
+                       ?? Devices.First(d => d.IsOnline);
+            _lastKnownSerial = pick.Serial;
             if (ReferenceEquals(pick, SelectedDevice)) await ConnectAsync(pick);
             else SelectedDevice = pick;
         }
@@ -1277,9 +1275,21 @@ public partial class MainViewModel : ObservableObject
             StatusText = $"正在连接 {dev.Serial} …";
             var swConn = System.Diagnostics.Stopwatch.StartNew();
 
-            DevStatus = "正在连接…";
+            if (_fs != null && _fs.Serial != dev.Serial)
+            {
+                _fs = null;
+                _monitor?.Stop();
+                ClearFileListing();
+                ClearDeviceInfo();
+            }
+
             var probe = new RemoteFileSystem(_runner, dev.Serial, false);
-            IsRoot = await probe.DetectRootAsync();
+            var mode = state.Contains("recovery", StringComparison.Ordinal) ? DeviceMode.Recovery : DeviceMode.System;
+            DeviceModeText = PowerService.ModeText(mode);
+            var infoTask = LoadDeviceInfoAsync(dev.Serial, dev.Model, "", probe);
+            var rootAvailable = await probe.DetectRootAsync();
+            if (SelectedDevice?.Serial != dev.Serial) return;
+            IsRoot = rootAvailable;
             Perf($"startup detect-root {swConn.ElapsedMilliseconds}ms root={IsRoot}");
 
             _fs = new RemoteFileSystem(_runner, dev.Serial, IsRoot, FileTransfers) { };
@@ -1319,32 +1329,10 @@ public partial class MainViewModel : ObservableObject
 
             Perf($"startup fs-ready {swConn.ElapsedMilliseconds}ms");
 
-            // 三条 getprop/dumpsys 并发跑（每条都是一次 adb 往返，串行白等）
-            var modeTask = _power.DetectModeAsync(dev.Serial);
-            string model = "", rel = "";
-            try
-            {
-                var props = await Task.WhenAll(
-                    _client.GetPropAsync(dev.Serial, "ro.product.model"),
-                    _client.GetPropAsync(dev.Serial, "ro.build.version.release"));
-                model = props[0];
-                rel = props[1];
-            }
-            catch { }
-            Perf($"startup props {swConn.ElapsedMilliseconds}ms");
-            DeviceSub = $"设备：{model}    Android {rel}    " +
-                        (IsRoot ? "可用 root 访问系统目录" : "无 root，仅能访问内部存储");
-
+            UpdateBootloaderVerdict();
             HintText = IsRoot
                 ? "提示：双击文件夹进入 · 选中后可用「权限」改 777 · 「执行」跑 shell 脚本"
                 : "提示：当前没有 root，只能访问内部存储；如需进入 /data，请在手机上授权 root";
-
-            try
-            {
-                var mode = await modeTask;
-                DeviceModeText = PowerService.ModeText(mode);
-            }
-            catch { DeviceModeText = "未知"; }
 
             LogLine($"已连接 {dev.Serial}（服务已重建）");
 
@@ -1355,15 +1343,15 @@ public partial class MainViewModel : ObservableObject
             var navTask = NavigateAsync(string.IsNullOrWhiteSpace(startPath)
                 ? (IsRoot ? "/" : DevicePaths.Sdcard)
                 : startPath);
-            var infoTask = LoadDeviceInfoAsync(dev.Serial, model, rel);
             var rootTask = LoadRootInfoAsync();
+            StartMonitor();
 
             await navTask;
             Perf($"startup first-nav {swConn.ElapsedMilliseconds}ms");
             if (IsAppsTab) LoadAppsAsync().Safe("读取应用", m => StatusText = m);
-            StartMonitor();
 
             await infoTask;
+            UpdateDeviceSubtitle();
             Perf($"startup device-info {swConn.ElapsedMilliseconds}ms");
             await rootTask;
             Perf($"startup root-info {swConn.ElapsedMilliseconds}ms ready");
@@ -1388,12 +1376,15 @@ public partial class MainViewModel : ObservableObject
 
     private async Task LoadRootInfoAsync()
     {
-        if (_fs == null) return;
+        var fs = _fs;
+        if (fs == null) return;
         try
         {
             // 统一走 provider：KernelSU 系 / Magisk 系 / APatch 各自的差异都收在 Services/Root 里，
             //   这里只负责把结果贴到界面上。
-            _root = IsRoot ? await RootProviders.DetectAsync(_fs) : null;
+            var root = fs.UseRoot ? await RootProviders.DetectAsync(fs) : null;
+            if (!ReferenceEquals(fs, _fs)) return;
+            _root = root;
             // provider 变了，模块安装/卸载命令也要跟着换
             _modules = null;
 
@@ -1403,11 +1394,12 @@ public partial class MainViewModel : ObservableObject
             ManagerMode = _root?.WorkMode ?? "—";
             RootHint = _root?.GrantHint ?? "";
 
-            if (_root != null)
+            if (root != null)
             {
-                var grants = _root.CanReadGrants
-                    ? await _root.ReadGrantsAsync()
+                var grants = root.CanReadGrants
+                    ? await root.ReadGrantsAsync()
                     : new List<RootGrant>();
+                if (!ReferenceEquals(fs, _fs) || !ReferenceEquals(root, _root)) return;
                 var allowedCount = grants.Count(g => g.Allowed);
 
                 // GrantHint 依赖"读到表之后才知道的布局歧义"，读完要再取一次，否则提示永远是旧的
@@ -1424,6 +1416,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             await LoadModulesAsync();
+            if (!ReferenceEquals(fs, _fs)) return;
             ModuleCount = Modules.Count.ToString();
 
             Perf($"root provider -> id={_root?.Id} family={_root?.Family} name={_root?.DisplayName} " +
@@ -1552,9 +1545,17 @@ public partial class MainViewModel : ObservableObject
         DevUnlock = BootloaderState.Describe(verdict);
     }
 
-    private async Task LoadDeviceInfoAsync(string serial, string model, string androidVer)
+    private void UpdateDeviceSubtitle()
     {
-        if (string.IsNullOrWhiteSpace(serial)) return;
+        DeviceSub = $"设备：{DevModel}    Android {DevAndroid}    " +
+                    (IsRoot ? "可用 root 访问系统目录" : "无 root，仅能访问内部存储");
+    }
+
+    private async Task LoadDeviceInfoAsync(string serial, string model, string androidVer,
+        RemoteFileSystem? probe = null)
+    {
+        var fs = probe ?? _fs;
+        if (fs == null || string.IsNullOrWhiteSpace(serial) || fs.Serial != serial) return;
         _lastSerial = serial;
 
         try
@@ -1592,8 +1593,9 @@ public partial class MainViewModel : ObservableObject
                 ";echo SCR=$(wm size 2>/dev/null | tail -1)" +
                 ";echo CORES=$(grep -c ^processor /proc/cpuinfo)";
 
-            var outText = "";
-            if (_fs != null) outText = await _fs.RunCommandAsync(cmd, false);
+            var outText = await fs.RunCommandAsync(cmd, false);
+            if (SelectedDevice?.Serial != serial || (probe == null && !ReferenceEquals(fs, _fs)))
+                return;
 
             var map = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var line in outText.Split('\n'))
@@ -1609,8 +1611,8 @@ public partial class MainViewModel : ObservableObject
             }
             string G(string k, string def = "—") => map.TryGetValue(k, out var v) && v.Length > 0 ? v : def;
 
-            DevModel = string.IsNullOrWhiteSpace(model) ? G("M") : model;
-            DevAndroid = string.IsNullOrWhiteSpace(androidVer) ? G("R") : androidVer;
+            DevModel = FirstNonEmpty(G("M"), string.IsNullOrWhiteSpace(model) ? "—" : model);
+            DevAndroid = FirstNonEmpty(G("R"), string.IsNullOrWhiteSpace(androidVer) ? "—" : androidVer);
             DevCodename = G("D");
             DevVersion = G("BUILD");
             DevKernel = G("KERNEL");
@@ -2134,7 +2136,8 @@ public partial class MainViewModel : ObservableObject
     /// <summary>后台逐个预热子目录（用户停在某目录时才开始，一旦导航立刻取消）</summary>
     private async Task PrefetchAsync(IReadOnlyList<PosixEntry> entries)
     {
-        if (_fs == null || !IsFileTab || entries.Count == 0) return;
+        var fs = _fs;
+        if (fs == null || !IsFileTab || entries.Count == 0) return;
         _prefetchCts?.Cancel();
         var cts = new CancellationTokenSource();
         _prefetchCts = cts;
@@ -2147,7 +2150,8 @@ public partial class MainViewModel : ObservableObject
                 // 前 3 个立刻做（点得最快的往往就是这几个），后面的慢慢来
                 if (n++ >= 3) await Task.Delay(140, cts.Token);
                 if (_prefetch.ContainsKey(d.FullPath)) continue;
-                var sub = await _fs.ListAsync(d.FullPath, cts.Token);
+                var sub = await fs.ListAsync(d.FullPath, cts.Token);
+                if (cts.IsCancellationRequested || !ReferenceEquals(fs, _fs)) return;
                 _prefetch[d.FullPath] = (DateTime.Now, sub);
             }
         }
@@ -2159,39 +2163,74 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>预取命中的目录：后台再取一次真实内容，和当前显示不一致就静默替换（只换一次，不闪）</summary>
+    private RemoteFileSystem? _listedFileSystem;
+    private string _listedPath = "";
+    private int _listingRevision;
+
+    /// <summary>后台刷新已显示的目录，保持导航位置和选择。</summary>
     private async Task RevalidateAsync(string path)
     {
-        if (_fs == null) return;
+        var fs = _fs;
+        var navigation = _cts;
+        if (fs == null || !ReferenceEquals(fs, _listedFileSystem) || _listedPath != path) return;
+
+        var revision = ++_listingRevision;
         try
         {
-            var fresh = await Task.Run(() => _fs.ListAsync(path));
-            _listCache[path] = (DateTime.Now, fresh);
-            _prefetch[path] = (DateTime.Now, fresh);
+            var fresh = await fs.ListAsync(path, navigation?.Token ?? CancellationToken.None);
+            if (!ReferenceEquals(fs, _fs) || !ReferenceEquals(navigation, _cts) ||
+                _listedPath != path || revision != _listingRevision)
+                return;
 
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (!string.Equals(CurrentPath, path, StringComparison.Ordinal)) return;
-                if (fresh.Count == _entriesRaw.Count)
-                {
-                    var same = true;
-                    for (var i = 0; i < fresh.Count && same; i++)
-                    {
-                        var a = fresh[i]; var b = _entriesRaw[i];
-                        same = a.FullPath == b.FullPath && a.Size == b.Size && a.Modified == b.Modified;
-                    }
-                    if (same) return;
-                }
-                _entriesRaw = fresh.ToList();
-                ApplySort();
-            });
+            var snapshot = (DateTime.Now, fresh);
+            _listCache[path] = snapshot;
+            _prefetch[path] = snapshot;
+            _treeCache.Remove(path);
+
+            SetListing(fs, path, fresh);
+            _treeSyncPending = !IsFileTab;
+            if (IsFileTab) SyncTreeAsync(path, _entriesRaw).Safe("同步目录树");
+            PrefetchAsync(_entriesRaw).Safe("预取目录");
         }
-        catch { }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (ReferenceEquals(fs, _fs) && ReferenceEquals(navigation, _cts) && revision == _listingRevision)
+                LogLine("刷新目录 " + path + " => " + ex.Message);
+        }
+    }
+
+    private void ClearFileListing()
+    {
+        _cts?.Cancel();
+        _listedFileSystem = null;
+        _listedPath = "";
+        _entriesRaw.Clear();
+        ApplySort(false);
+    }
+
+    private void SetListing(RemoteFileSystem fs, string path, List<PosixEntry> fresh)
+    {
+        var sameDirectory = ReferenceEquals(fs, _listedFileSystem) && _listedPath == path;
+        if (sameDirectory)
+        {
+            var existing = new Dictionary<string, PosixEntry>(StringComparer.Ordinal);
+            foreach (var entry in _entriesRaw) existing.TryAdd(entry.FullPath, entry);
+            _entriesRaw = fresh.Select(entry =>
+                existing.TryGetValue(entry.FullPath, out var old) && old.HasSameMetadata(entry) ? old : entry).ToList();
+        }
+        else _entriesRaw = fresh.ToList();
+
+        _listedFileSystem = fs;
+        _listedPath = path;
+        ApplySort(sameDirectory);
     }
 
     /// <summary>任何"写"操作后清掉预取缓存，避免看到过期目录</summary>
     private void InvalidatePrefetch()
     {
+        _listingRevision++;
+        _prefetchCts?.Cancel();
         _prefetch.Clear();
         _treeCache.Clear();
         _listCache.Clear();      // 以前漏了列表缓存：写操作后 2.5 秒内还能看到旧内容
@@ -2220,14 +2259,15 @@ public partial class MainViewModel : ObservableObject
     /// 列目录（带 2.5s 缓存）。切目录、树懒加载、树补全都走这里，
     /// 同一个目录在短时间内只会真正跑一次 adb。
     /// </summary>
-    private async Task<List<PosixEntry>> GetListingAsync(string path, CancellationToken ct = default)
+    private async Task<List<PosixEntry>> GetListingAsync(RemoteFileSystem fs, string path, CancellationToken ct)
     {
         if (_listCache.TryGetValue(path, out var hit) &&
             (DateTime.Now - hit.At).TotalMilliseconds < ListCacheMs)
             return hit.Items;
 
-        var list = await _fs!.ListAsync(path, ct);
-        _listCache[path] = (DateTime.Now, list);
+        var list = await fs.ListAsync(path, ct);
+        ct.ThrowIfCancellationRequested();
+        if (ReferenceEquals(fs, _fs)) _listCache[path] = (DateTime.Now, list);
         return list;
     }
 
@@ -2510,30 +2550,48 @@ public partial class MainViewModel : ObservableObject
         StatusText = "主题色已切换：" + t.Name;
     }
 
-    /// <summary>把设备上的文件导出到电脑上的某个文件夹（拖到窗口外时用）</summary>
-    public async Task ExportToAsync(IReadOnlyList<PosixEntry> items, string localDir)
+    /// <summary>导出选中项目并返回实际写入的本地路径。</summary>
+    public async Task<IReadOnlyList<string>> ExportToAsync(IReadOnlyList<PosixEntry> items, string localDir)
     {
-        var fs=_fs;if(fs==null||items.Count==0||string.IsNullOrWhiteSpace(localDir))return;
-        Directory.CreateDirectory(localDir);var completed=0;
-        foreach(var item in items)
+        var fs = _fs;
+        var exported = new List<string>();
+        if (fs == null || items.Count == 0 || string.IsNullOrWhiteSpace(localDir)) return exported;
+
+        Directory.CreateDirectory(localDir);
+        var stopped = "";
+        foreach (var item in items)
         {
-            if(!ReferenceEquals(fs,_fs)){LogLine("EXPORT 设备已切换，停止后续导出");break;}
+            if (!ReferenceEquals(fs, _fs))
+            {
+                stopped = "设备已切换，已停止导出";
+                break;
+            }
+
             try
             {
-                if(Path.GetFileName(item.Name)!=item.Name||item.Name is "." or "..")throw new IOException("文件名不适用于 Windows 导出");
-                if(item.IsDir)
-                {
-                    var remoteTar=DevicePaths.TempFile("export",".tar.gz");
-                    try{await fs.TarGzAsync(item.FullPath,remoteTar);await fs.DownloadAsync(remoteTar,Path.Combine(localDir,item.Name+".tar.gz"));}
-                    finally{await fs.DeleteAsync(new[]{remoteTar},CancellationToken.None);}
-                }
-                else await fs.DownloadAsync(item.FullPath,Path.Combine(localDir,item.Name));
-                completed++;
+                if (Path.GetFileName(item.Name) != item.Name || item.Name is "." or "..")
+                    throw new IOException("文件名不适用于 Windows 导出");
+                var path = Path.Combine(localDir, item.IsDir ? item.Name + ".tar.gz" : item.Name);
+                if (item.IsDir)
+                    await PackAndDownloadAsync(fs, item, DevicePaths.TempFile("export", ".tar.gz"), path);
+                else
+                    await fs.DownloadAsync(item.FullPath, path);
+                exported.Add(path);
             }
-            catch(OperationCanceledException){StatusText=$"导出已取消，完成 {completed}/{items.Count} 项";return;}
-            catch(Exception ex){LogLine("EXPORT "+ex.Message);}
+            catch (OperationCanceledException)
+            {
+                stopped = "导出已取消";
+                break;
+            }
+            catch (Exception ex) { LogLine("EXPORT " + ex.Message); }
         }
-        StatusText=$"已导出 {completed}/{items.Count} 项到 {localDir}";Toast(StatusText);
+
+        StatusText = stopped.Length > 0
+            ? $"{stopped}，已完成 {exported.Count}/{items.Count} 项"
+            : $"已导出 {exported.Count}/{items.Count} 项到 {localDir}" +
+              (exported.Count < items.Count ? "，部分项目未完成（见日志）" : "");
+        Toast(StatusText);
+        return exported;
     }
 
     [RelayCommand]
@@ -2641,7 +2699,10 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnFilterTextChanged(string value) => ApplySort();
 
-    private void ApplySort()
+    internal event Action<bool>? ListingChanging;
+    internal event Action? ListingChanged;
+
+    private void ApplySort(bool preserveView = true)
     {
         IEnumerable<PosixEntry> q = string.IsNullOrWhiteSpace(FilterText)
             ? _entriesRaw
@@ -2657,8 +2718,16 @@ public partial class MainViewModel : ObservableObject
         };
 
         var sorted = q.ToList();
-        Entries.ReplaceAll(sorted);        // 一次 Reset，避免逐条 Add 触发 N 次布局
         IsEmpty = sorted.Count == 0;
+        if (Entries.SequenceEqual(sorted)) return;
+
+        ListingChanging?.Invoke(preserveView);
+        try
+        {
+            if (preserveView) Entries.Patch(sorted);
+            else Entries.ReplaceAll(sorted);
+        }
+        finally { ListingChanged?.Invoke(); }
     }
 
     [ObservableProperty] private bool _isToastVisible;
@@ -2668,14 +2737,23 @@ public partial class MainViewModel : ObservableObject
     /// <summary>右下角轻提示</summary>
     public void Toast(string message)
     {
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => Toast(message));
+            return;
+        }
+
         ToastText = message;
         IsToastVisible = true;
-        var stamp = ++_toastStamp;
-        _ = Task.Run(async () =>
+        HideToastAsync(++_toastStamp, Math.Clamp(2400 + message.Length * 25L, 2400, 8500)).Safe("隐藏提示");
+    }
+
+    private async Task HideToastAsync(int stamp, long duration)
+    {
+        await Task.Delay(TimeSpan.FromMilliseconds(duration)).ConfigureAwait(false);
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
         {
-            await Task.Delay(2400);
-            if (stamp == _toastStamp)
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => IsToastVisible = false);
+            if (stamp == _toastStamp) IsToastVisible = false;
         });
     }
 
@@ -2683,7 +2761,8 @@ public partial class MainViewModel : ObservableObject
 
     public async Task NavigateAsync(string path)
     {
-        if (_fs == null) return;
+        var fs = _fs;
+        if (fs == null) return;
         // 导航代际：快速连点目录时，旧请求可能在新的之后才返回，
         //   用它自己的 token 判断是否已被取代，避免旧目录把新目录覆盖掉。
         var cts = new CancellationTokenSource();
@@ -2711,19 +2790,17 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                list = await GetListingAsync(path, cts.Token);
+                list = await GetListingAsync(fs, path, cts.Token);
             }
-            if (!ReferenceEquals(cts, _cts)) return;   // 已被更新的导航取代
+            if (!ReferenceEquals(cts, _cts) || !ReferenceEquals(fs, _fs)) return;
             var tLs = swNav.ElapsedMilliseconds;
             if (fromPrefetch) Perf($"  (prefetch hit, saved ~{tLs}ms)");
 
-            _entriesRaw = list.ToList();
-            ApplySort();      // 内部会填充 Entries（含排序/筛选），不重复加两遍
+            SetListing(fs, path, list);
             var tSort = swNav.ElapsedMilliseconds;
 
             CurrentPath = path;
             BuildCrumbs(path);
-            IsEmpty = list.Count == 0;
             Perf($"nav {path,-24} ls={tLs}ms sort={tSort - tLs}ms items={list.Count}");
             StatusText = $"共 {list.Count} 个项目    {path}";
 
@@ -2732,12 +2809,12 @@ public partial class MainViewModel : ObservableObject
             if (IsFileTab) SyncTreeAsync(path, list).Safe("同步目录树");
 
             if (fromPrefetch) RevalidateAsync(path).Safe("校准目录");
-            PrefetchAsync(list).Safe("预取目录");
+            else PrefetchAsync(list).Safe("预取目录");
         }
         catch (OperationCanceledException) { /* 被更新的一次导航取消，正常 */ }
         catch (Exception ex)
         {
-            if (!ReferenceEquals(cts, _cts)) return;
+            if (!ReferenceEquals(cts, _cts) || !ReferenceEquals(fs, _fs)) return;
             StatusText = "无法打开该目录：" + ex.Message;
             LogLine("LIST " + path + " => " + ex.Message);
         }
@@ -3179,15 +3256,24 @@ public partial class MainViewModel : ObservableObject
 
     public async Task DeleteAsync(IEnumerable<PosixEntry> items)
     {
-        if (_fs == null) return;
-        var list = items.ToList();
-        if (list.Count == 0) return;
-        InvalidatePrefetch();
+        var fs = _fs;
+        if (fs == null) return;
+        var paths = items.Select(i => i.FullPath).ToHashSet(StringComparer.Ordinal);
+        if (paths.Count == 0) return;
         try
         {
-            await _fs.DeleteAsync(list.Select(i => i.FullPath));
-            await NavigateAsync(CurrentPath);
-            StatusText = $"已删除 {list.Count} 个项目";
+            await fs.DeleteAsync(paths);
+            if (!ReferenceEquals(fs, _fs)) return;
+
+            InvalidatePrefetch();
+            if (ReferenceEquals(fs, _listedFileSystem))
+            {
+                // 目标已删除，即使回读暂时失败，也不继续显示旧行或保留其选择。
+                if (_entriesRaw.RemoveAll(entry => paths.Contains(entry.FullPath)) != 0)
+                    ApplySort();
+                await RevalidateAsync(_listedPath);
+            }
+            StatusText = $"已删除 {paths.Count} 个项目";
         }
         catch (Exception ex)
         {
@@ -3341,22 +3427,50 @@ public partial class MainViewModel : ObservableObject
         var files = localFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (files.Count == 0) return;
         var completed = 0;
+        var cancelled = false;
         foreach (var f in files)
         {
+            if (!ReferenceEquals(fs, _fs))
+            {
+                StatusText = $"设备已切换，停止上传，完成 {completed}/{files.Count} 项";
+                return;
+            }
             try { StatusText = "正在放入：" + Path.GetFileName(f); await fs.UploadAsync(f, targetDir); completed++; }
-            catch (OperationCanceledException) { StatusText = $"上传已取消，完成 {completed}/{files.Count} 项"; return; }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
+                break;
+            }
             catch (Exception ex) { LogLine("UPLOAD " + f + " => " + ex.Message); }
         }
-        if (ReferenceEquals(fs, _fs) && targetDir == CurrentPath) await NavigateAsync(CurrentPath);
-        StatusText = $"放入完成：{completed}/{files.Count} 项" + (completed < files.Count ? $"，失败 {files.Count - completed} 项（见日志）" : "") + " → " + targetDir;
+        if (ReferenceEquals(fs, _fs))
+        {
+            InvalidatePrefetch();
+            if (targetDir == CurrentPath) await RevalidateAsync(targetDir);
+        }
+        StatusText = cancelled
+            ? $"上传已取消，完成 {completed}/{files.Count} 项"
+            : $"放入完成：{completed}/{files.Count} 项" +
+              (completed < files.Count ? $"，失败 {files.Count - completed} 项（见日志）" : "") + " → " + targetDir;
     }
 
     /// <summary>打包远端文件夹并下载到本地</summary>
-    public async Task PackAndDownloadAsync(PosixEntry dir, string remoteTar, string localPath, CancellationToken ct = default)
+    public Task PackAndDownloadAsync(PosixEntry dir, string remoteTar, string localPath, CancellationToken ct = default)
+        => PackAndDownloadAsync(_fs ?? throw new InvalidOperationException("设备未连接"), dir, remoteTar, localPath, ct);
+
+    private async Task PackAndDownloadAsync(RemoteFileSystem fs, PosixEntry dir, string remoteTar, string localPath,
+        CancellationToken ct = default)
     {
-        var fs=_fs ?? throw new InvalidOperationException("设备未连接");
-        try { await fs.TarGzAsync(dir.FullPath,remoteTar,ct); await fs.DownloadAsync(remoteTar,localPath,ct); }
-        finally { try{await fs.DeleteAsync(new[]{remoteTar},CancellationToken.None);}catch{} }
+        try
+        {
+            await fs.TarGzAsync(dir.FullPath, remoteTar, ct);
+            await fs.DownloadAsync(remoteTar, localPath, ct);
+        }
+        finally
+        {
+            try { await fs.DeleteAsync(new[] { remoteTar }, CancellationToken.None); }
+            catch (Exception ex) { LogLine("清理设备端打包临时文件失败：" + ex.Message); }
+        }
     }
 
     /// <summary>Each drag export owns its own directory; concurrent exports never share a filename.</summary>

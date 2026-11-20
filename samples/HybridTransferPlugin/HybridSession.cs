@@ -13,6 +13,7 @@ public sealed class HybridSession : IAsyncDisposable
     public const long MaximumFile = 1L << 40;
     private readonly HybridChannel _control;
     private readonly List<HybridChannel> _rails;
+    private readonly Action<string>? _log;
     private readonly SemaphoreSlim _gate = new(1,1);
     private const int LanHandshakeTimeoutSeconds = 4;
     private bool _disposed;
@@ -21,7 +22,14 @@ public sealed class HybridSession : IAsyncDisposable
     public string? PendingUploadPath { get; private set; }
     public string Channels => _rails.Count == 1 ? "USB 单通道" : string.Join(" + ", _rails.Select(r => r.Name));
     public IReadOnlyDictionary<string,long> Traffic => _rails.ToDictionary(r=>r.Name,r=>Interlocked.Read(ref r.Bytes));
-    private HybridSession(HybridChannel control,List<HybridChannel> rails,string serial,string uid) { _control=control;_rails=rails;Serial=serial;Uid=uid; }
+    private HybridSession(HybridChannel control, List<HybridChannel> rails, string serial, string uid, Action<string>? log)
+    {
+        _control = control;
+        _rails = rails;
+        _log = log;
+        Serial = serial;
+        Uid = uid;
+    }
     public static CancellationTokenSource Deadline(CancellationToken ct, double seconds=45)
     { var c=CancellationTokenSource.CreateLinkedTokenSource(ct);c.CancelAfter(TimeSpan.FromSeconds(seconds));return c; }
     public static bool PrivateAddress(IPAddress ip)
@@ -60,7 +68,7 @@ public sealed class HybridSession : IAsyncDisposable
                 catch(Exception ex) when (endpoint.Name!="USB"&&!ct.IsCancellationRequested) { log?.Invoke(endpoint.Name+"不可达，跳过该通道："+ex.GetType().Name); }
             }
             if(rails.Count==0)throw new IOException("USB 传输通道未连接。");
-            return new HybridSession(control,rails,serial,uid);
+            return new HybridSession(control, rails, serial, uid, log);
         }
         catch { control?.Dispose();foreach(var rail in rails)rail.Dispose();throw; }
     }
@@ -117,10 +125,17 @@ public sealed class HybridSession : IAsyncDisposable
                 var local=Convert.ToHexString(await SHA256.HashDataAsync(file,ct));var remote=await RemoteHash(r.RemotePath,info.Length,info.Modified,ct);
                 if(!local.Equals(remote,StringComparison.OrdinalIgnoreCase))throw new IOException("下载 SHA-256 校验失败，未替换目标文件。");
             }
+            if (info.Modified > 0)
+            {
+                try { File.SetLastWriteTimeUtc(partial, DateTimeOffset.FromUnixTimeMilliseconds(info.Modified).UtcDateTime); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentOutOfRangeException)
+                {
+                    _log?.Invoke("保留源文件修改时间失败：" + ex.Message);
+                }
+            }
             ct.ThrowIfCancellationRequested();
-            File.Move(partial,destination,true);
-            progress?.Report(new(info.Length,info.Length,Channels,Path.GetFileName(r.LocalPath),"已校验"));
-            if(info.Modified>0)try{File.SetLastWriteTimeUtc(destination,DateTimeOffset.FromUnixTimeMilliseconds(info.Modified).UtcDateTime);}catch(ArgumentOutOfRangeException){}
+            File.Move(partial, destination, true);
+            progress?.Report(new(info.Length, info.Length, Channels, Path.GetFileName(r.LocalPath), "已校验"));
         }
         finally {if(File.Exists(partial))File.Delete(partial);}
     }

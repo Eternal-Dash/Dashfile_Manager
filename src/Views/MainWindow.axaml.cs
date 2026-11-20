@@ -43,9 +43,6 @@ public partial class MainWindow : Window
     private bool _multiMode;
     private ListBoxItem? _hlItem;
 
-    // 内部拖拽数据格式（行 -> 同目录文件夹）
-    private const string InternalFormat = "dashfile/paths";
-
     // 右键落点
     private Point _rightPos;
     private ContextMenu? _ctx;
@@ -82,6 +79,8 @@ public partial class MainWindow : Window
         switch (e.PropertyName)
         {
             case nameof(MainViewModel.SelectedTab):
+                if (Vm?.IsFileTab == true) RequestFileOffsetRestore();
+                else ClearExternalDropFeedback();
                 // 标签指示器现在由 SegmentedTabs 自己维护，这里只管页面内的行高亮
                 Dispatcher.UIThread.Post(() => UpdateRowPill(false), DispatcherPriority.Loaded);
                 // 树/行的高亮是在隐藏状态下构建时量不出位置的（Bounds=0），
@@ -99,12 +98,44 @@ public partial class MainWindow : Window
         var vm = _subscribedVm;
         _subscribedVm = null;
         if (vm == null) return;
+        vm.ListingChanging -= OnListingChanging;
+        vm.ListingChanged -= OnListingChanged;
+        vm.FileTransfers.Operations.Started -= OnTransferStarted;
+        _dropLeaveTimer?.Stop();
         try { vm.TreeVisualChanged -= RequestTreePill; } catch { }
         if (_vmPropertyHandler != null)
         {
             try { vm.PropertyChanged -= _vmPropertyHandler; } catch { }
         }
         Closed -= OnClosedUnsubscribe;
+    }
+
+    private TransferProgressWindow? _transferWindow;
+
+    private void OnTransferStarted(FileTransferOperation operation)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_subscribedVm == null || operation.Snapshot.Finished) return;
+            if (_transferWindow is { } current)
+            {
+                current.Enqueue(operation);
+                return;
+            }
+
+            try
+            {
+                var progress = new TransferProgressWindow(operation);
+                _transferWindow = progress;
+                progress.Closed += (_, _) => _transferWindow = null;
+                progress.Show(this);
+            }
+            catch (Exception ex)
+            {
+                _transferWindow = null;
+                AppLog.Add("无法打开传输窗口：" + ex.Message);
+            }
+        });
     }
 
     private void RebuildPluginNavigation()
@@ -140,6 +171,9 @@ public partial class MainWindow : Window
                 // 两个订阅都要能解绑：以前是匿名 lambda，挂在 Vm 上一辈子（窗口关了也不放）
                 _subscribedVm = vm;
                 vm.TreeVisualChanged += RequestTreePill;
+                vm.ListingChanging += OnListingChanging;
+                vm.ListingChanged += OnListingChanged;
+                vm.FileTransfers.Operations.Started += OnTransferStarted;
                 _vmPropertyHandler ??= OnVmPropertyChanged;
                 vm.PropertyChanged += _vmPropertyHandler;
                 Closed += OnClosedUnsubscribe;
@@ -220,10 +254,12 @@ public partial class MainWindow : Window
 
         Dispatcher.UIThread.Post(() =>
         {
-            var sv = Files.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-            if (sv != null)
-                sv.ScrollChanged += (_, _) =>
+            _fileScroller = Files.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+            if (_fileScroller != null)
+                _fileScroller.ScrollChanged += (_, _) =>
                 {
+                    if (Vm?.IsFileTab == true && !_updatingListing && !_restoringFileOffset)
+                        _fileOffset = _fileScroller.Offset;
                     _hoverEntry = null;
                     SetHoverBorder(null);
                     // 滑块在滚动内容里，天然跟随；只有容器刚实现/还没定位时才补一次
@@ -976,13 +1012,20 @@ public partial class MainWindow : Window
         var tree = TreeBox;
         if (tree == null) return;
         var row = TreeRowAt(e.GetPosition(tree));
-        var ok = row != null &&
-                 (e.Data.Contains(InternalFormat) || e.Data.Contains(DataFormats.Files));
-        e.DragEffects = ok ? (e.Data.Contains(InternalFormat) ? DragDropEffects.Move : DragDropEffects.Copy)
-                           : DragDropEffects.None;
+        var hasFiles = e.DataTransfer.Contains(DataFormat.File);
+        var ok = row != null && hasFiles;
+        e.DragEffects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+        _dropLeaveTimer?.Stop();
+        SetHighlight(null);
         SetTreeHighlight(ok ? row : null);
-        if (Vm != null)
-            Vm.DragHint = ok ? $"松开即放到「{row!.Name}」" : "拖到目录树里的文件夹上";
+        var hint = ok ? $"松开即放到「{row!.Name}」" : "拖到目录树里的文件夹上";
+        if (hasFiles)
+        {
+            ShowUploadBar(true);
+            ShowDropOverlay(hint);
+            SetDragHint(hint);
+        }
+        else ClearExternalDropFeedback();
         e.Handled = true;
     }
 
@@ -999,34 +1042,86 @@ public partial class MainWindow : Window
 
     private async void OnTreeDrop(object? sender, DragEventArgs e)
     {
-        SetTreeHighlight(null);
-        if (Vm == null) return;
-        var tree = TreeBox;
-        if (tree == null) return;
+        if (Vm == null || TreeBox is not { } tree) return;
         var row = TreeRowAt(e.GetPosition(tree));
         if (row == null) return;
 
-        if (e.Data.Contains(InternalFormat))
-        {
-            // e.Handled 必须在第一个 await 之前置位：await 之后路由已经继续传给上层，
-            //   同一批文件会被上层再处理一次（移动完又被上传一份）。
-            e.Handled = true;
-            var paths = e.Data.Get(InternalFormat) as string[];
-            if (paths is { Length: > 0 }) await Vm.MoveAsync(paths, row.FullPath);
-            return;
-        }
-
-        var files = e.Data.GetFiles();
+        // 在第一个 await 前拦截，否则文件页也会接收同一批文件。
+        e.Handled = true;
+        ClearExternalDropFeedback();
+        var files = e.DataTransfer.TryGetFiles();
         if (files == null) return;
         var locals = files.Select(x => x.TryGetLocalPath())
                           .Where(x => !string.IsNullOrEmpty(x)).Cast<string>().ToList();
         if (locals.Count > 0) await Vm.UploadToAsync(locals, row.FullPath);
-        e.Handled = true;
+    }
+
+    private ScrollViewer? _fileScroller;
+    private Vector _fileOffset;
+    private bool _updatingListing;
+    private bool _restoringFileOffset;
+    private int _fileViewRevision;
+    private HashSet<string>? _preservedSelection;
+
+    private void OnListingChanging(bool preserveView)
+    {
+        _updatingListing = true;
+        _preservedSelection = preserveView
+            ? SelectedEntries().Select(entry => entry.FullPath).ToHashSet(StringComparer.Ordinal)
+            : null;
+        if (!preserveView) _fileOffset = default;
+        _hoverEntry = null;
+        SetHoverBorder(null);
+        if (!_rowDrag) SetHighlight(null);
+    }
+
+    private void OnListingChanged()
+    {
+        var selection = _preservedSelection;
+        _preservedSelection = null;
+        _restoringFileOffset = true;
+        try
+        {
+            var wanted = selection == null ? Array.Empty<PosixEntry>() :
+                Files.Items.OfType<PosixEntry>().Where(entry => selection.Contains(entry.FullPath)).ToArray();
+            if (Files.SelectedItems is { } selected && !selected.OfType<PosixEntry>().SequenceEqual(wanted))
+            {
+                selected.Clear();
+                foreach (var entry in wanted) selected.Add(entry);
+            }
+        }
+        finally { _updatingListing = false; }
+        if (Vm is { } vm) vm.SelectedEntry = Files.SelectedItem as PosixEntry;
+        SyncFileSelection();
+        RequestFileOffsetRestore();
+    }
+
+    private void RequestFileOffsetRestore()
+    {
+        var revision = ++_fileViewRevision;
+        var offset = _fileOffset;
+        _restoringFileOffset = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (revision != _fileViewRevision) return;
+            _restoringFileOffset = false;
+            if (Vm?.IsFileTab != true || _fileScroller == null) return;
+            _fileScroller.Offset = offset;
+            _fileOffset = _fileScroller.Offset;
+            UpdateRowPill(false);
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnFilesSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        Vm?.UpdateSelectionInfo(SelectedEntries());
+        if (!_updatingListing) SyncFileSelection();
+    }
+
+    private void SyncFileSelection()
+    {
+        var selected = SelectedEntries();
+        Vm?.UpdateSelectionInfo(selected);
+        if (selected.Count == 0) HideRowPill();
         if (_multiMode) UpdateMultiHint();
         // 新行的 Bounds 要等一帧才准
         Dispatcher.UIThread.Post(() => UpdateRowPill(), DispatcherPriority.Loaded);
@@ -1524,6 +1619,17 @@ public partial class MainWindow : Window
     // ================= 拖拽反馈（对齐资源管理器的观感） =================
 
     private string _overlayText = "";
+    private DispatcherTimer? _dropLeaveTimer;
+
+    private void ClearExternalDropFeedback()
+    {
+        _dropLeaveTimer?.Stop();
+        HideDropOverlay();
+        ShowUploadBar(false);
+        SetTreeHighlight(null);
+        SetHighlight(null);
+        SetDragHint("");
+    }
 
     private void ShowDropOverlay(string text)
     {
@@ -1554,8 +1660,8 @@ public partial class MainWindow : Window
         var label = this.FindControl<TextBlock>("DragGhostText");
         if (ghost == null || layer == null || label == null) return;
 
-        label.Text = text;
-        ghost.IsVisible = true;
+        if (label.Text != text) label.Text = text;
+        if (!ghost.IsVisible) ghost.IsVisible = true;
 
         // 不让提示跑到窗口外面
         var x = Math.Min(Math.Max(4, windowPos.X + 16), Math.Max(4, Bounds.Width - 320));
@@ -1576,10 +1682,11 @@ public partial class MainWindow : Window
     private void OnPageDragOver(object? sender, DragEventArgs e)
     {
         if (Vm == null) return;
-        if (e.Data.Contains(InternalFormat)) { e.DragEffects = DragDropEffects.None; e.Handled = true; return; }
-
-        var ok = e.Data.Contains(DataFormats.Files) && !e.Data.Contains(InternalFormat);
+        _dropLeaveTimer?.Stop();
+        var ok = e.DataTransfer.Contains(DataFormat.File);
         e.DragEffects = ok ? DragDropEffects.Copy : DragDropEffects.None;
+        SetTreeHighlight(null);
+        SetHighlight(null);
         ShowUploadBar(ok);
         if (ok)
         {
@@ -1616,27 +1723,26 @@ public partial class MainWindow : Window
 
     private async void OnPageDrop(object? sender, DragEventArgs e)
     {
-        HideDropOverlay();
-        ShowUploadBar(false);
-        SetDragHint("");
+        e.Handled = true;
+        ClearExternalDropFeedback();
         if (Vm == null) return;
-        var files = e.Data.GetFiles();
+        var files = e.DataTransfer.TryGetFiles();
         if (files == null) return;
 
         var locals = files.Select(x => x.TryGetLocalPath()).Where(x => !string.IsNullOrEmpty(x)).Cast<string>().ToList();
-        if (locals.Count == 0) { e.Handled = true; return; }
-
-        e.Handled = true;
-        await Vm.UploadToAsync(locals, Vm.CurrentPath);
+        if (locals.Count > 0) await Vm.UploadToAsync(locals, Vm.CurrentPath);
     }
 
     private void OnPageDragLeave(object? sender, DragEventArgs e)
     {
-        HideDropOverlay();
-        ShowUploadBar(false);
-        SetTreeHighlight(null);
-        SetHighlight(null);
-        SetDragHint("");
+        if (_dropLeaveTimer == null)
+        {
+            _dropLeaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(90) };
+            _dropLeaveTimer.Tick += (_, _) => ClearExternalDropFeedback();
+        }
+        // 子控件切换时也会冒泡 DragLeave。给后续 DragOver 一次机会，避免落点条反复出现。
+        _dropLeaveTimer.Stop();
+        _dropLeaveTimer.Start();
     }
 
     // ================= 上传 / 下载 =================
@@ -2161,11 +2267,11 @@ public partial class MainWindow : Window
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         // 只处理“从电脑拖进来”的上传；列表内部的拖动走指针事件，不走系统拖放
-        var ok = e.Data.Contains(DataFormats.Files);
+        _dropLeaveTimer?.Stop();
+        SetTreeHighlight(null);
+        var ok = e.DataTransfer.Contains(DataFormat.File);
         e.DragEffects = ok ? DragDropEffects.Copy : DragDropEffects.None;
-
-        var external = ok && !e.Data.Contains(InternalFormat);
-        ShowUploadBar(external);
+        ShowUploadBar(ok);
         if (ok)
         {
             var overBar = IsOverUploadBar(e);
@@ -2188,22 +2294,23 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnFilesDragLeave(object? sender, DragEventArgs e)
-    {
-        // 离开列表（移动到工具栏/底部条）时清掉行高亮，避免高亮停在原处
-        SetHighlight(null);
-    }
-
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         e.Handled = true;      // 先拦下，避免 await 期间同一批文件继续冒泡到 OnPageDrop 被上传两次
-        if (Vm == null) return;
-        var items = e.Data.GetFiles();
-        if (items == null) return;
+        var items = e.DataTransfer.TryGetFiles();
+        if (Vm == null || items == null)
+        {
+            ClearExternalDropFeedback();
+            return;
+        }
 
         var localPaths = items.Select(i => i.TryGetLocalPath())
                          .Where(p => !string.IsNullOrEmpty(p)).Cast<string>().ToList();
-        if (localPaths.Count == 0) return;
+        if (localPaths.Count == 0)
+        {
+            ClearExternalDropFeedback();
+            return;
+        }
 
         // 落点必须先算再收尾：IsOverUploadBar 依赖 UploadBar.IsVisible，
         //   一旦先 ShowUploadBar(false)，这里就永远判成"不在条上"，
@@ -2211,9 +2318,7 @@ public partial class MainWindow : Window
         var overBar = IsOverUploadBar(e);
         var hit = overBar ? null : HitTestEntry(e.GetPosition(Files));
 
-        HideDropOverlay();
-        ShowUploadBar(false);
-        SetHighlight(null);
+        ClearExternalDropFeedback();
 
         var dir = hit is { IsDir: true } ? hit.FullPath : Vm.CurrentPath;
         AppLog.Add($"DROP {localPaths.Count} 项 -> {dir}（条上={overBar}，行={(hit == null ? "无" : hit.Name)}）");
@@ -2584,7 +2689,9 @@ public partial class MainWindow : Window
         if (Vm == null) return;
         _dragPosition=pos;
         var hit = HitTestEntry(pos);
-        var target = hit is { IsDir: true } && !_rowDragItems.Any(i=>hit.FullPath==i.FullPath||hit.FullPath.StartsWith(i.FullPath.TrimEnd('/')+"/",StringComparison.Ordinal)) ? hit : null;
+        var target = hit is { IsDir: true } && !_rowDragItems.Any(item =>
+            hit.FullPath == item.FullPath ||
+            hit.FullPath.StartsWith(item.FullPath.TrimEnd('/') + "/", StringComparison.Ordinal)) ? hit : null;
         if (!ReferenceEquals(target, _dragTarget))
         {
             _dragTarget = target;
@@ -2643,10 +2750,24 @@ public partial class MainWindow : Window
             }
             else
             {
-                var dir = ShellFolderAtCursor();
-                if(dir==null){Vm.StatusText="已取消导出：请拖到桌面空白处或资源管理器文件夹";return;}
-                Vm.DragHint = $"正在导出到 {dir} …";
-                await Vm.ExportToAsync(items, dir);
+                var dropPoint = this.PointToScreen(wp);
+                if (ShellFolderAt(dropPoint) is not { } destination)
+                {
+                    Vm.StatusText = "已取消导出：请拖到桌面空白处或资源管理器文件夹";
+                    return;
+                }
+
+                Vm.DragHint = $"正在导出到 {destination.Path} …";
+                var exported = await Vm.ExportToAsync(items, destination.Path);
+                if (OperatingSystem.IsWindows() && destination.IsDesktop && exported.Count > 0)
+                {
+                    var workArea = Screens.ScreenFromPoint(dropPoint)?.WorkingArea;
+                    var result = await DesktopIconPlacement.PlaceAsync(exported, dropPoint, workArea);
+                    if (result == DesktopIconPlacement.Result.AutoArrange)
+                        Vm.Toast($"已导出 {exported.Count} 项。桌面图标由 Windows 自动排列");
+                    else if (result == DesktopIconPlacement.Result.Unavailable)
+                        AppLog.Add("桌面文件已导出，未能设置图标落点");
+                }
             }
         }
         catch (Exception ex)
@@ -2656,6 +2777,7 @@ public partial class MainWindow : Window
         finally
         {
             Vm.IsDragging = false;
+            Vm.DragHint = "";
         }
     }
 
@@ -2665,24 +2787,27 @@ public partial class MainWindow : Window
     private static extern IntPtr WindowFromPoint(POINT p);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(IntPtr h, uint flags);
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern bool GetCursorPos(out POINT p);
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern int GetClassName(IntPtr handle, [System.Runtime.InteropServices.Out] char[] name, int max);
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
 
-    private static string? ShellFolderAtCursor()
+    private readonly record struct ExportDestination(string Path, bool IsDesktop);
+
+    private static ExportDestination? ShellFolderAt(PixelPoint point)
     {
         try
         {
-            if (!OperatingSystem.IsWindows()) return null;   // 下面全是 Win32 / COM（CA1416）
-            if (!GetCursorPos(out var pt)) return null;
-            var root = GetAncestor(WindowFromPoint(pt), 2);   // GA_ROOT
+            if (!OperatingSystem.IsWindows()) return null;
+            var root = GetAncestor(WindowFromPoint(new POINT { X = point.X, Y = point.Y }), 2);   // GA_ROOT
             if (root == IntPtr.Zero) return null;
             var cls=new char[256];var clsLength=GetClassName(root,cls,cls.Length);
-            if(new string(cls,0,clsLength) is "Progman" or "WorkerW")return Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            if (new string(cls, 0, clsLength) is "Progman" or "WorkerW")
+            {
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                return Directory.Exists(desktop) ? new ExportDestination(desktop, true) : null;
+            }
 
             var t = Type.GetTypeFromProgID("Shell.Application");
             if (t == null) return null;
@@ -2694,7 +2819,7 @@ public partial class MainWindow : Window
                     if ((IntPtr)w.HWND == root)
                     {
                         string path = (string)w.Document.Folder.Self.Path;
-                        if (Directory.Exists(path)) return path;
+                        if (Directory.Exists(path)) return new ExportDestination(path, false);
                     }
                 }
                 catch { }

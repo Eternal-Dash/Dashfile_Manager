@@ -2,11 +2,18 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DashFile.Controls;
+using DashFile.Models;
+using DashFile.Services;
+using DashFile.ViewModels;
+using DashFile.Views;
+using System.Reflection;
 
 var render = args.Length == 2 && args[0] == "--render";
 var builder = AppBuilder.Configure<DashFile.App>();
@@ -186,6 +193,145 @@ var badgeRows = details.GetVisualDescendants().OfType<WrapPanel>()
 Check("plugin badges wrap to another row instead of pushing the detail controls out",
     badgeRows?.Children.Select(child => child.Bounds.Y).Distinct().Count() > 1);
 pluginWindow.Close();
+
+void Capture(Window window, string name)
+{
+    if (!render) return;
+    AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+    using var screenshot = window.CaptureRenderedFrame();
+    screenshot?.Save(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[1]))!, name + ".png"));
+}
+
+var owner = new Window { Width = 960, Height = 640 };
+owner.Show();
+var property = PropertyDialog.ShowAsync(owner, new PosixEntry
+{
+    Name = "属性示例.txt", FullPath = "/sdcard/Documents/属性示例.txt",
+    Perms = "rw-r--r--", Owner = "shell", Group = "shell", Size = 1024,
+});
+Pump();
+var propertyDialog = owner.OwnedWindows.OfType<PropertyDialog>().Single();
+var pathField = propertyDialog.GetControl<SelectableTextBlock>("PathText");
+var pathPoint = pathField.TranslatePoint(new Point(8, pathField.Bounds.Height / 2), propertyDialog)!.Value;
+propertyDialog.MouseDown(pathPoint, MouseButton.Left, RawInputModifiers.LeftMouseButton);
+Pump(510);
+Check("holding a property field selects its entire value", pathField.SelectedText == pathField.Text);
+propertyDialog.MouseUp(pathPoint, MouseButton.Left, RawInputModifiers.None);
+propertyDialog.MouseDown(pathPoint, MouseButton.Right, RawInputModifiers.RightMouseButton);
+propertyDialog.MouseUp(pathPoint, MouseButton.Right, RawInputModifiers.None);
+Pump();
+Check("right click opens the property value menu", pathField.ContextMenu?.IsOpen == true);
+pathField.ContextMenu!.Items.OfType<MenuItem>().Single().RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+Pump();
+Check("property context menu copies the value to the clipboard",
+    propertyDialog.Clipboard!.TryGetTextAsync().GetAwaiter().GetResult() == pathField.Text);
+pathField.ContextMenu.Close();
+Capture(propertyDialog, "dashfile-property");
+propertyDialog.Close();
+Pump();
+Check("property dialog completes when closed", property.IsCompleted);
+
+var welcome = new WelcomeWindow();
+welcome.Show();
+Pump();
+Check("desktop shortcut starts checked in the welcome dialog", welcome.GetControl<CheckBox>("DesktopShortcutBox").IsChecked == true);
+Capture(welcome, "dashfile-welcome");
+welcome.Close();
+owner.Close();
+
+const BindingFlags member = BindingFlags.Instance | BindingFlags.NonPublic;
+var fileVm = new MainViewModel { SelectedTab = 1, CurrentPath = "/sdcard" };
+var fileHost = new MainWindow { DataContext = fileVm };
+var filePage = fileHost.GetControl<DockPanel>("FilePage");
+((Border)filePage.Parent!).Child = null;
+filePage.DataContext = fileVm;
+var fileWindow = new Window { Width = 1050, Height = 680, Content = filePage };
+var fileList = fileHost.GetControl<ListBox>("FilesList");
+typeof(MainViewModel).GetEvent("ListingChanging", member)!.GetAddMethod(true)!.Invoke(fileVm, new object[]
+{
+    typeof(MainWindow).GetMethod("OnListingChanging", member)!.CreateDelegate<Action<bool>>(fileHost)
+});
+typeof(MainViewModel).GetEvent("ListingChanged", member)!.GetAddMethod(true)!.Invoke(fileVm, new object[]
+{
+    typeof(MainWindow).GetMethod("OnListingChanged", member)!.CreateDelegate<Action>(fileHost)
+});
+fileVm.PropertyChanged += typeof(MainWindow).GetMethod("OnVmPropertyChanged", member)!
+    .CreateDelegate<System.ComponentModel.PropertyChangedEventHandler>(fileHost);
+var applyListing = typeof(MainViewModel).GetMethod("SetListing", member)!;
+var simulatedFs = new RemoteFileSystem(new AdbRunner("unused-adb"), "MOCK", false);
+PosixEntry FileEntry(int number, long size = 10) =>
+    new() { Name = $"文件 {number:D3}.txt", FullPath = $"/sdcard/{number:D3}.txt", Size = size };
+void ListFiles(IEnumerable<PosixEntry> items) => applyListing.Invoke(fileVm, new object[] { simulatedFs, "/sdcard", items.ToList() });
+
+fileWindow.Show();
+ListFiles(Enumerable.Range(0, 96).Select(i => FileEntry(i)));
+Pump();
+var listingScroll = fileList.GetVisualDescendants().OfType<ScrollViewer>().First();
+fileList.SelectedItem = fileVm.Entries[29];
+fileList.SelectedItems!.Add(fileVm.Entries[30]);
+Pump();
+listingScroll.Offset = new Vector(0, 720);
+Pump();
+var originalOffset = listingScroll.Offset.Y;
+fileVm.SelectedTab = 5;
+Pump();
+fileVm.SelectedTab = 1;
+ListFiles(Enumerable.Range(0, 96).Where(i => i != 80).Select(i => FileEntry(i, i == 29 ? 42 : 10)));
+Pump();
+Check("file refresh preserves directory and scroll offset across tabs",
+    fileVm.CurrentPath == "/sdcard" && originalOffset > 0 && Math.Abs(listingScroll.Offset.Y - originalOffset) < 2);
+Check("file refresh keeps multi-selection by path even when metadata changes",
+    fileList.SelectedItems!.OfType<PosixEntry>().Select(e => (e.FullPath, e.Size))
+        .SequenceEqual(new[] { ("/sdcard/029.txt", 42L), ("/sdcard/030.txt", 10L) }));
+Capture(fileWindow, "dashfile-file-refresh");
+ListFiles(Enumerable.Range(0, 96).Where(i => i != 29 && i != 30).Select(i => FileEntry(i)));
+Pump();
+Check("deleted selection clears row highlight and the view-model selection",
+    fileList.SelectedItems!.Count == 0 && fileVm.SelectedEntry == null &&
+    !fileList.GetVisualDescendants().OfType<Border>().Any(b => b.Name == "RowPill" && b.IsVisible));
+using (var dragData = new DataTransfer())
+{
+    // Headless has no platform file picker. Use Avalonia's filesystem-backed item implementation.
+    var storageFile = typeof(IStorageItem).Assembly.GetType("Avalonia.Platform.Storage.FileIO.BclStorageFile")!;
+    var item = (IStorageItem)Activator.CreateInstance(storageFile, member | BindingFlags.Public, null,
+        new object[] { new FileInfo(Environment.ProcessPath!) }, null)!;
+    dragData.Add(DataTransferItem.CreateFile(item));
+    void Drag(Avalonia.Interactivity.RoutedEvent<DragEventArgs> gesture) =>
+        fileList.RaiseEvent(new DragEventArgs(gesture, dragData, fileList, new Point(25, 30), KeyModifiers.None));
+    var bar = fileHost.GetControl<Border>("UploadBar");
+    Drag(DragDrop.DragOverEvent);
+    Pump();
+    Check("external file drag opens upload feedback", bar.IsVisible);
+    Drag(DragDrop.DragLeaveEvent);
+    Pump(25);
+    Check("crossing a file child does not immediately hide upload feedback", bar.IsVisible);
+    Drag(DragDrop.DragOverEvent);
+    Pump(150);
+    Check("continued drag cancels pending feedback cleanup", bar.IsVisible);
+    Drag(DragDrop.DragLeaveEvent);
+    Pump(150);
+    Check("leaving the file page clears upload feedback", !bar.IsVisible);
+}
+fileWindow.Close();
+
+var statusField = fileHost.GetControl<SelectableTextBlock>("RightStatusField");
+var hostDock = ((Panel)fileHost.Content!).Children.OfType<DockPanel>().Single();
+var statusBar = (Border)hostDock.Children[0];
+hostDock.Children.Remove(statusBar);
+statusBar.DataContext = fileVm;
+var statusWindow = new Window { Width = 960, Height = 180, Content = statusBar };
+var notice = "传输完成 " + string.Join(" / ", Enumerable.Repeat("设备路径很长，结果可以滚动查看", 18));
+fileVm.StatusText = notice;
+statusWindow.Show();
+Pump();
+var statusScroll = statusField.FindAncestorOfType<ScrollViewer>()!;
+var statusEnd = statusScroll.TranslatePoint(new Point(statusScroll.Bounds.Width, 0), statusWindow);
+Check("long status remains complete, wrapped, and scrollable at minimum width",
+    statusField.Text == notice && statusScroll.Bounds.Width <= 320 &&
+    statusScroll.Viewport.Width > 0 && statusEnd?.X <= statusWindow.ClientSize.Width &&
+    statusScroll.Extent.Height > statusScroll.Viewport.Height);
+Capture(statusWindow, "dashfile-status");
+statusWindow.Close();
 
 Console.WriteLine($"{passed} passed, {failed} failed; headless only, no device operations.");
 return failed==0?0:1;

@@ -32,6 +32,7 @@ public sealed class AppSettings
 
     /// <summary>欢迎页勾过「以后不再显示」后置真，以后再启动就不再弹</summary>
     public bool WelcomeHidden { get; set; }
+    public bool DesktopShortcutOffered { get; set; }
 
     private static AppSettings? _current;
     private static string Dir => AppPaths.LocalRoot;

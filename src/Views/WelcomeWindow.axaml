@@ -70,9 +70,11 @@
 
     <Border Classes="footer" DockPanel.Dock="Bottom">
       <Grid ColumnDefinitions="*,Auto">
-        <CheckBox x:Name="DontShowBox" Content="再也不要看到提示了！" IsChecked="False"
-                  VerticalAlignment="Center"/>
-        <Button Grid.Column="1" Classes="tool pri" Content="我知道了" Click="OnOk"/>
+        <StackPanel VerticalAlignment="Center" Spacing="4">
+          <CheckBox x:Name="DontShowBox" Content="再也不要看到提示了！" IsChecked="False"/>
+          <CheckBox x:Name="DesktopShortcutBox" Content="创建桌面快捷方式" IsChecked="True"/>
+        </StackPanel>
+        <Button Grid.Column="1" Classes="tool pri" Content="我知道了" Click="OnOk" VerticalAlignment="Center"/>
       </Grid>
     </Border>
 

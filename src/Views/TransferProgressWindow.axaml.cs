@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -10,6 +11,7 @@ namespace DashFile.Views;
 public partial class TransferProgressWindow : Window
 {
     private FileTransferOperation? _operation;
+    private readonly Queue<FileTransferOperation> _pending = new();
     private readonly DispatcherTimer _timer;
     private DateTime? _finishedAt;
     private bool _canClose;
@@ -23,12 +25,26 @@ public partial class TransferProgressWindow : Window
         KeyDown+=(_,e)=>{if(e.Key==Avalonia.Input.Key.Escape){e.Handled=true;CancelOrClose();}};
         Refresh();
     }
+    internal void Enqueue(FileTransferOperation operation)
+    {
+        _pending.Enqueue(operation);
+        Refresh();
+    }
+
     private void OnCancel(object? sender,RoutedEventArgs e)=>CancelOrClose();
     private void CancelOrClose(){if(_canClose||_operation==null)Close();else{_operation.Cancel();Refresh();}}
     private void Refresh()
     {
         if(_operation==null)return;
         var s=_operation.Snapshot;
+        while (s.Finished && _pending.TryDequeue(out var next))
+        {
+            _operation = next;
+            _finishedAt = null;
+            _canClose = false;
+            s = next.Snapshot;
+        }
+        this.GetControl<TextBlock>("NoticeText").Text = s.Error;
         this.GetControl<TextBlock>("DirectionText").Text=s.Direction;
         this.GetControl<TextBlock>("FileNameText").Text=s.FileName;
         this.GetControl<TextBlock>("ChannelText").Text=s.Channels;
@@ -42,9 +58,10 @@ public partial class TransferProgressWindow : Window
         var remaining=s.BytesPerSecond>0&&s.Total>s.Completed?TimeSpan.FromSeconds((s.Total-s.Completed)/s.BytesPerSecond).ToString(@"hh\:mm\:ss"):"—";
         this.GetControl<TextBlock>("TimeText").Text="已用 "+TimeSpan.FromSeconds(s.ElapsedSeconds).ToString(@"hh\:mm\:ss")+"  ·  预计剩余 "+remaining;
         var button=this.GetControl<Button>("CancelButton");button.IsEnabled=!s.Cancelling||s.Finished;
+        button.Content = s.Finished ? "关闭" : "取消";
         if(!s.Finished)return;
-        _canClose=true;button.Content="关闭";
-        if(s.Error.Length>0){this.GetControl<TextBlock>("NoticeText").Text=s.Error;return;}
+        _canClose=true;
+        if(s.Error.Length>0)return;
         if(s.Cancelling){Close();return;}
         _finishedAt??=DateTime.UtcNow;if(DateTime.UtcNow-_finishedAt>TimeSpan.FromMilliseconds(600))Close();
     }

@@ -64,6 +64,9 @@ public sealed class RemoteFileSystem
                 var r = await _adb.RunAsync(new[] { "-s", Serial, "shell", "su", "-c", cmd }, ct).ConfigureAwait(false);
                 var o = (r.StdOut + r.StdErr);
                 if (o.Contains("uid=0") || o.Trim() == "root") return true;
+                if (r.ExitCode == 127 && o.Contains("su", StringComparison.OrdinalIgnoreCase) &&
+                    o.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return false;
             }
 
             var r2 = await _adb.RunAsync(new[] { "-s", Serial, "shell", "su", "0", "id" }, ct).ConfigureAwait(false);
@@ -297,6 +300,7 @@ public sealed class RemoteFileSystem
         var temp=DevicePaths.TempFile("up");
         var sibling=Sh.Join(Sh.Parent(target),".dashfile-up-"+Guid.NewGuid().ToString("N")+".partial");
         var stagingUsed=inPlace;
+        var committed = false;
         try
         {
             var routed=request with { RemotePath=inPlace?temp:target };
@@ -319,14 +323,26 @@ public sealed class RemoteFileSystem
             commit+=" && echo DF_OK";
             var done=await ShellAsync(commit,request.UseRoot,CancellationToken.None).ConfigureAwait(false);EnsureOk(done);
             if(!done.StdOut.Contains("DF_OK",StringComparison.Ordinal))throw new IOException("目标文件提交失败。");
+            committed = true;
             progress.Report(new(length,length,handled?"双轨快传":"ADB · USB",Path.GetFileName(localFile),"已完成"));
         }
         finally
         {
             if(stagingUsed)
             {
-                try{await RemoveOwnedRemoteTempAsync(temp,request.UseRoot).ConfigureAwait(false);}
-                finally{if(!inPlace)await RemoveOwnedRemoteTempAsync(sibling,request.UseRoot).ConfigureAwait(false);}
+                try
+                {
+                    try { await RemoveOwnedRemoteTempAsync(temp, request.UseRoot).ConfigureAwait(false); }
+                    finally
+                    {
+                        if (!inPlace && !committed)
+                            await RemoveOwnedRemoteTempAsync(sibling, request.UseRoot).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex) when (committed)
+                {
+                    L("上传已写入目标，临时文件清理失败：" + ex.Message);
+                }
             }
         }
     }

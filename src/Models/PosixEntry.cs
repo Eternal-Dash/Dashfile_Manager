@@ -15,6 +15,11 @@ public sealed class PosixEntry
     public DateTime Modified { get; init; }
     public string LinkTarget { get; init; } = "";
 
+    internal bool HasSameMetadata(PosixEntry other)
+        => Name == other.Name && TypeChar == other.TypeChar && Perms == other.Perms &&
+           Owner == other.Owner && Group == other.Group && Selinux == other.Selinux &&
+           Size == other.Size && Modified == other.Modified && LinkTarget == other.LinkTarget;
+
     public bool IsDir => TypeChar == 'd';
     public bool IsLink => TypeChar == 'l';
     public bool IsExec => Perms.Length == 9 && Perms[2] == 'x';

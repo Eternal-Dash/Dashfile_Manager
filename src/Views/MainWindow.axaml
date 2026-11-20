@@ -45,7 +45,7 @@
   <DockPanel LastChildFill="True">
 
     <Border Classes="bar" DockPanel.Dock="Top" Padding="18,10">
-      <Grid ColumnDefinitions="Auto,*,Auto">
+      <Grid ColumnDefinitions="Auto,Auto,*">
         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <!-- 品牌标记：一个小色块，给顶栏一个视觉锚点 -->
           <Border Width="7" Height="7" CornerRadius="3.5" Background="{DynamicResource Accent}"
@@ -67,16 +67,21 @@
             <TextBlock Text="{Binding RootBadge}"/>
           </Border>
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" VerticalAlignment="Center"
+              HorizontalAlignment="Right" MaxWidth="360">
           <Button Classes="tool" Content="取消" Command="{Binding CancelInstallCommand}"
                   IsVisible="{Binding IsInstalling}" Margin="0,0,4,0"
                   ToolTip.Tip="中止正在进行的 APK 安装"/>
-          <Path Data="{StaticResource IcoBattery}" IsVisible="{Binding IsDeviceTab}"
+          <Path Grid.Column="1" Data="{StaticResource IcoBattery}" IsVisible="{Binding IsDeviceTab}"
                 Stroke="{DynamicResource TextSub}" StrokeThickness="1.4" Width="15" Height="15"
                 Stretch="Uniform" VerticalAlignment="Center"/>
-          <TextBlock Classes="value" Text="{Binding RightStatusText}" MaxWidth="360"
-                     TextTrimming="CharacterEllipsis"/>
-        </StackPanel>
+          <ScrollViewer Grid.Column="2" MaxWidth="320" MaxHeight="80" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <SelectableTextBlock x:Name="RightStatusField" Classes="value" Text="{Binding RightStatusText}"
+                                 TextWrapping="Wrap" SelectionBrush="{DynamicResource SelBg}"
+                                 SelectionForegroundBrush="{DynamicResource TextMain}"/>
+          </ScrollViewer>
+        </Grid>
       </Grid>
     </Border>
 
@@ -647,7 +652,7 @@
                      SelectionMode="Multiple" Background="Transparent" BorderThickness="0" Padding="0"
                      ctl:SmoothScroll.Enabled="True"
                      DragDrop.AllowDrop="True" DragDrop.DragOver="OnDragOver" DragDrop.Drop="OnDrop"
-                     DragDrop.DragLeave="OnFilesDragLeave" PointerExited="OnFilesPointerExited">
+                     PointerExited="OnFilesPointerExited">
               <!-- 自定义模板：把选中滑块放进 ScrollViewer 的内容里（和树的 Canvas 一样），
                    这样它天然跟着列表滚动，滚动/虚拟化都不会漂；换行时只改 translateY 做滑动。 -->
               <ListBox.Template>
@@ -1384,9 +1389,13 @@
 
       <!-- 右下角轻提示（浮在页面之上） -->
       <Border x:Name="ToastHost" IsVisible="{Binding IsToastVisible}" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-              Margin="0,0,22,22" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
+              Margin="22,0,22,22" MaxWidth="460" Background="{DynamicResource PanelAlt}" BorderBrush="{DynamicResource Hairline}"
               BorderThickness="1" CornerRadius="{DynamicResource RadiusCard}" Padding="14,9" BoxShadow="0 6 20 0 #55000000">
-        <TextBlock Text="{Binding ToastText}" FontSize="13" Foreground="{DynamicResource TextMain}"/>
+        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <SelectableTextBlock Text="{Binding ToastText}" TextWrapping="Wrap" FontSize="13"
+                               Foreground="{DynamicResource TextMain}" SelectionBrush="{DynamicResource SelBg}"
+                               SelectionForegroundBrush="{DynamicResource TextMain}"/>
+        </ScrollViewer>
       </Border>
     </Grid>
 

@@ -7,6 +7,16 @@ using DashFile.Services;
 using HybridTransferPlugin;
 
 // Child mode models ADB binary stdout and failures without touching any device.
+if (args.Length > 1 && args[0] == "-s" && args[1] == "MOCK-CLEANUP")
+{
+    if (args[^1].Contains("echo DF_OK", StringComparison.Ordinal))
+    {
+        Console.Write("DF_OK");
+        return 0;
+    }
+    Console.Error.Write("simulated staging cleanup denied");
+    return 7;
+}
 if(args.Length>1 && args[0]=="-s" && args[1]=="MOCK")
 {
     var mode=args[^1];
@@ -95,6 +105,20 @@ Check("timeout preserves destination and cleans partial files",await File.ReadAl
 adbRunner.TransferTimeout=TimeSpan.FromSeconds(5);using(var cancel=new CancellationTokenSource(180))await Reject("streaming ADB cancellation",()=>remoteFs.DownloadAsync("/sleep",nativeTarget,cancel.Token));
 Check("cancel preserves destination and cleans partial files",await File.ReadAllTextAsync(nativeTarget)=="keep on timeout"&&!Directory.GetFiles(root,"*.partial").Any());
 var syncSource=Path.Combine(root,"sync-upload.bin");var syncPayload=new byte[3*1024*1024+53];RandomNumberGenerator.Fill(syncPayload);await File.WriteAllBytesAsync(syncSource,syncPayload);
+var cleanupRegistry = new FileTransferRegistry();
+var cleanupFs = new RemoteFileSystem(adbRunner, "MOCK-CLEANUP", true, cleanupRegistry);
+TransferSnapshot? cleanupSnapshot = null;
+FileTransferOperation? cleanupOperation = null;
+cleanupRegistry.Operations.Started += operation => cleanupOperation = operation;
+var cleanupWarning = false;
+cleanupFs.Log += message => cleanupWarning |= message.Contains("上传已写入目标，临时文件清理失败", StringComparison.Ordinal);
+using (cleanupRegistry.Register("mock-cleanup", new FakeProvider(), 100))
+{
+    await cleanupFs.UploadAsync(syncSource, DevicePaths.KsuDir, ct);
+    cleanupSnapshot = cleanupOperation?.Snapshot;
+}
+Check("post-commit cleanup warning does not mark the upload as failed",
+    cleanupWarning && cleanupSnapshot is { Finished: true, Cancelling: false, Error: "", Phase: "传输完成" });
 await using(var fixture=new SyncFixture(false))
 {
     long acknowledged=0;await AdbSyncUpload.PushAsync(adbRunner,"MOCK",syncSource,"/data/local/tmp/owned-test",n=>acknowledged=n,ct,fixture.Port);await fixture.Completed;

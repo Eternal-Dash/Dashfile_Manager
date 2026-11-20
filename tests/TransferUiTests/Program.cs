@@ -42,4 +42,29 @@ using(var op=operations.Begin(request,CancellationToken.None))
  var window=new TransferProgressWindow(op);window.Show();op.Report(new(100,100,"ADB · USB","download.zip","已完成"));operations.End(op,null);Pump(900);
  Check("completed transfer closes automatically",!window.IsVisible);
 }
+using (var first = operations.Begin(request, CancellationToken.None))
+using (var next = operations.Begin(request with { LocalPath = "C:/test/next.zip" }, CancellationToken.None))
+{
+    var window = new TransferProgressWindow(first);
+    window.Show();
+    Dispatcher.UIThread.RunJobs();
+    var enqueue = typeof(TransferProgressWindow).GetMethod("Enqueue",
+        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+    enqueue.Invoke(window, new object[] { next });
+    Check("pending transfer leaves the active operation in the current window",
+        window.GetControl<TextBlock>("FileNameText").Text == "download.zip");
+    first.Cancel();
+    operations.End(first, null);
+    Check("cancellation requested after commit does not change successful completion",
+        first.Snapshot.Finished && !first.Snapshot.Cancelling && first.Snapshot.Phase == "传输完成");
+    next.Report(new(14, 100, "ADB · USB", "next.zip"));
+    Pump();
+    Check("next file uses the same progress window with fresh state",
+        window.IsVisible && window.GetControl<TextBlock>("FileNameText").Text == "next.zip" &&
+        window.GetControl<ProgressBar>("TransferBar").Value == 14 &&
+        Equals(window.GetControl<Button>("CancelButton").Content, "取消"));
+    operations.End(next, null);
+    Pump(900);
+    Check("one progress window closes after the last operation", !window.IsVisible && operations.ActiveCount == 0);
+}
 Console.WriteLine($"{passed} passed, {failed} failed; UI only, no hardware.");return failed==0?0:1;

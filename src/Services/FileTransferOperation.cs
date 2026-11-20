@@ -17,7 +17,7 @@ public sealed class FileTransferOperation : IProgress<PluginTransferProgress>, I
     private string _channels="正在选择传输方式",_phase="准备中",_error="";
     private long _completed,_total,_sampleBytes;
     private double _sampleAt,_speed;
-    private bool _finished;
+    private bool _finished, _cancelled;
     public PluginTransferRequest Request { get; }
     public CancellationToken Token=>_cancel.Token;
     public FileTransferOperation(PluginTransferRequest request,CancellationToken ct)
@@ -44,13 +44,13 @@ public sealed class FileTransferOperation : IProgress<PluginTransferProgress>, I
     public TransferSnapshot Snapshot
     {
         get{lock(_gate)return new(System.IO.Path.GetFileName(Request.LocalPath),Request.Direction==PluginTransferDirection.Upload?"上传到设备":"下载到电脑",_channels,_phase,_completed,_total,
-            _clock.Elapsed.TotalSeconds-_sampleAt>1.5?0:_speed,_clock.Elapsed.TotalSeconds,_cancel.IsCancellationRequested,_finished,_error);}
+            _clock.Elapsed.TotalSeconds-_sampleAt>1.5?0:_speed,_clock.Elapsed.TotalSeconds,_finished ? _cancelled : _cancel.IsCancellationRequested,_finished,_error);}
     }
     public void Finish(Exception? error=null)
     {
         lock(_gate)
         {
-            _finished=true;_clock.Stop();_speed=0;
+            _finished=true;_cancelled=error is OperationCanceledException;_clock.Stop();_speed=0;
             _error=error is null or OperationCanceledException?"":error.Message;
             _phase=error==null?"传输完成":error is OperationCanceledException?"已取消，未完成文件已清理":"传输未完成";
         }
