@@ -16,9 +16,10 @@ using DashFile.Views;
 using System.Reflection;
 
 var render = args.Length == 2 && args[0] == "--render";
-var builder = AppBuilder.Configure<DashFile.App>();
-if (render) builder.UseSkia();
-builder.UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = !render }).SetupWithoutStarting();
+// Pointer coordinates and selectable text need the same text layout in both test modes.
+AppBuilder.Configure<DashFile.App>().UseSkia()
+    .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+    .SetupWithoutStarting();
 int passed=0, failed=0;
 void Check(string name,bool ok){Console.WriteLine((ok?"PASS ":"FAIL ")+name);if(ok)passed++;else failed++;}
 void Pump(int ms=160){var watch=System.Diagnostics.Stopwatch.StartNew();while(watch.ElapsedMilliseconds<ms){AvaloniaHeadlessPlatform.ForceRenderTimerTick();using var stop=new CancellationTokenSource(8);Dispatcher.UIThread.MainLoop(stop.Token);}}

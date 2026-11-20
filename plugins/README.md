@@ -5,7 +5,7 @@
 
 | 文件 | 插件版本 | 要求的 API | 最低宿主 | 说明 |
 |---|---|---:|---|---|
-| `DashFile - 双轨快传.dfp` | 1.0.4 | 3 | 1.2.0 | USB + Wi-Fi 并行传输，按大小分流，SHA-256 校验。原项目 HybridFileXfer / 原作者 weixiansen574 |
+| `DashFile - 双轨快传.dfp` | 1.0.5 | 3 | 1.2.0 | USB + Wi-Fi 并行传输，按大小分流，SHA-256 校验。原项目 HybridFileXfer / 原作者 weixiansen574 |
 | `DashFile - 分区刷写.dfp` | 1.0.3 | 2 | 1.1.0 | 分区计划、刷写、能力检查后回读与备份、整包刷写 |
 | `DashFile - AVB 工作台.dfp` | 1.0.1 | 1 | 1.0.0 | AVB 镜像解析与重签、哈希树、VBMeta 构建、整树链式 / 非链式重建、A/B 批处理、目录扫描 |
 | `DashFile - Hello 示例.dfp` | 1.0.0 | 1 | 1.0.0 | 二次开发模板，可从 `samples/HelloPlugin/` 自行编译 |
