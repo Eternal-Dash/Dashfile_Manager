@@ -25,10 +25,12 @@ plugin.json 示例：
 
 发布包默认不带插件（plugins 里只有 README）—— 下载到的工具是纯净的，插件按需自取。
 插件包下载位置：仓库的 plugins\ 目录（.dfp 文件，下载后安装并点「重新加载」）。
-当前官方插件：
-  · AVB 工作台（com.dashfile.avbstudio）：AVB 解析、重签、VBMeta 构建、整树链式/非链式重建、A/B 批处理、扫描
+仓库可下载双轨快传、分区刷写、AVB 工作台和 Hello 示例。
+下载地址见 https://github.com/Eternal-Dash/Dashfile_Manager/tree/main/plugins
 
-插件启用状态保存在 %LOCALAPPDATA%\DashFile\plugins\plugin-state.json。
+插件启用状态写入 %LOCALAPPDATA%\DashFile\plugin-state.json。
+旧版状态文件位于 %LOCALAPPDATA%\DashFile\plugins\plugin-state.json，当前宿主只在新路径无状态文件时回读。
+插件数据单独保存在 %LOCALAPPDATA%\DashFile\plugin-data\<插件id>。
 插件卸载：插件页选中插件 →「卸载」，可选择是否同时删除插件数据。
 
 插件开发说明见程序目录 docs\插件开发指南.md。
