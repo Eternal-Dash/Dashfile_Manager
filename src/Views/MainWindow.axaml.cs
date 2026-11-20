@@ -2042,6 +2042,7 @@ public partial class MainWindow : Window
             Add("新建文件夹", () => OnNewFolderClick(null, null!));
             Add("新建文件", () => OnNewFileClick(null, null!));
             Sep();
+            Add("复制当前目录", () => _ = CopyTextAsync(Vm.CurrentPath, "当前目录已复制"));
             Add("刷新", () => _ = Vm.RefreshAsync());
             Add("在命令行里打开此目录", () => _ = OpenRunDialogForDir());
         }
@@ -2060,6 +2061,7 @@ public partial class MainWindow : Window
             Add("修复 SELinux 标签", () => OnRestoreconClick(null, null!));
             Add("手动设 SELinux 类型…", () => OnChconClick(null, null!));
             Sep();
+            Add("复制当前文件夹目录", () => _ = CopyTextAsync(entry.FullPath, "文件夹目录已复制"));
             Add("属性", () => _ = ShowPropertyAsync(entry));
             Add("刷新", () => _ = Vm.RefreshAsync());
         }
@@ -2087,6 +2089,7 @@ public partial class MainWindow : Window
             Add("修复 SELinux 标签", () => OnRestoreconClick(null, null!));
             Add("手动设 SELinux 类型…", () => OnChconClick(null, null!));
             Sep();
+            Add("复制当前文件目录", () => _ = CopyTextAsync(entry.FullPath, "文件目录已复制"));
             Add("属性", () => _ = ShowPropertyAsync(entry));
             Add("刷新", () => _ = Vm.RefreshAsync());
         }
@@ -2106,6 +2109,19 @@ public partial class MainWindow : Window
         var menu = MenuFor(Files);
         menu.ItemsSource = items;
         menu.Open(Files);
+    }
+
+    /// <summary>把一段文本放进系统剪贴板（路径复制用）。</summary>
+    private async Task CopyTextAsync(string text, string done)
+    {
+        if (string.IsNullOrEmpty(text) || Vm is not { } vm) return;
+        if (Clipboard is not { } clipboard) { vm.StatusText = "剪贴板不可用"; return; }
+        try
+        {
+            await clipboard.SetTextAsync(text);
+            vm.Toast(done);
+        }
+        catch (Exception ex) { vm.StatusText = "复制失败：" + ex.Message; }
     }
 
     private async Task OpenRunDialogForDir()
@@ -2181,9 +2197,6 @@ public partial class MainWindow : Window
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         e.Handled = true;      // 先拦下，避免 await 期间同一批文件继续冒泡到 OnPageDrop 被上传两次
-        HideDropOverlay();
-        ShowUploadBar(false);
-        SetHighlight(null);
         if (Vm == null) return;
         var items = e.Data.GetFiles();
         if (items == null) return;
@@ -2192,8 +2205,18 @@ public partial class MainWindow : Window
                          .Where(p => !string.IsNullOrEmpty(p)).Cast<string>().ToList();
         if (localPaths.Count == 0) return;
 
-        var hit = IsOverUploadBar(e) ? null : HitTestEntry(e.GetPosition(Files));
+        // 落点必须先算再收尾：IsOverUploadBar 依赖 UploadBar.IsVisible，
+        //   一旦先 ShowUploadBar(false)，这里就永远判成"不在条上"，
+        //   于是松手在条上也会退化成"按光标下的那一行"——文件被塞进条盖住的那个文件夹里。
+        var overBar = IsOverUploadBar(e);
+        var hit = overBar ? null : HitTestEntry(e.GetPosition(Files));
+
+        HideDropOverlay();
+        ShowUploadBar(false);
+        SetHighlight(null);
+
         var dir = hit is { IsDir: true } ? hit.FullPath : Vm.CurrentPath;
+        AppLog.Add($"DROP {localPaths.Count} 项 -> {dir}（条上={overBar}，行={(hit == null ? "无" : hit.Name)}）");
         await Vm.UploadToAsync(localPaths, dir);
     }
 
